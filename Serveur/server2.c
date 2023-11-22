@@ -117,7 +117,7 @@ static void app(void)
                   strncat(buffer, " disconnected !", BUF_SIZE - strlen(buffer) - 1);
                   send_message_to_all_clients(clients, client, actual, buffer, 1);
                }
-               else if (strcmp(buffer, "ls") == 0)
+               else if ((strcmp(buffer, "ls") == 0) || (strcmp(buffer, "list") == 0))
                {
                   send_list_of_clients(clients, client, actual, client.sock, buffer, 0);
                }
