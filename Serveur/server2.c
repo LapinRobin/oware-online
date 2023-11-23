@@ -121,6 +121,16 @@ static void app(void)
                {
                   send_list_of_clients(clients, client, actual, client.sock, buffer, 0);
                }
+               else if (strcmp(buffer, "v") == 0)
+               {
+                  challenge_another_client(clients, client, actual, client.sock, buffer, 0);
+               }
+               else if (strcmp(buffer, "exit") == 0)
+               {
+                  send_message_to_all_clients(clients, client, actual, buffer, 1);
+                  closesocket(clients[i].sock);
+                  remove_client(clients, i, &actual);
+               }
                else
                {
                   send_message_to_all_clients(clients, client, actual, buffer, 0);
@@ -186,6 +196,72 @@ static void send_list_of_clients(Client *clients, Client client, int actual, int
     if (sender_sock != -1) {
         // Send only to the requesting client
         write_client(client.sock, list_buffer);
+    }
+}
+
+static void challenge_another_client(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server) {
+    char list_buffer[1024]; // Assuming 1024 is sufficient
+    strcpy(list_buffer, "Connected clients:\n");
+
+    for (int i = 0; i < actual; i++) {
+        strcat(list_buffer, clients[i].name);
+        strcat(list_buffer, "\n");
+        // printf("Client %d: %s\n", i, clients[i].name);
+    }
+
+    if (sender_sock != -1) {
+        // Send only to the requesting client
+        write_client(client.sock, list_buffer);
+    }
+
+    char challenge_buffer[1024]; // Assuming 1024 is sufficient
+    strcpy(challenge_buffer, "Who do you want to challenge?\n");
+
+    if (sender_sock != -1) {
+        // Send only to the requesting client
+        write_client(client.sock, challenge_buffer);
+    }
+
+    char challengee_name[1024];
+    if (read_client(sender_sock, challengee_name) == -1) {
+        /* disconnected */
+        return;
+    }
+
+    int challengee_sock = -1;
+    for (int i = 0; i < actual; i++) {
+        if (strcmp(clients[i].name, challengee_name) == 0) {
+            challengee_sock = clients[i].sock;
+            break;
+        }
+    }
+
+    if (challengee_sock == -1) {
+        // Challengee not found
+        char not_found_buffer[1024]; // Assuming 1024 is sufficient
+        strcpy(not_found_buffer, "Challengee not found\n");
+
+        if (sender_sock != -1) {
+            // Send only to the requesting client
+            write_client(client.sock, not_found_buffer);
+        }
+    } else {
+        // Challengee found
+        char challenge_buffer[1024]; // Assuming 1024 is sufficient
+        strcpy(challenge_buffer, "Challengee found\n");
+
+        if (sender_sock != -1) {
+            // Send only to the requesting client
+            write_client(client.sock, challenge_buffer);
+        }
+
+        char challengee_response_buffer[1024]; // Assuming 1024 is sufficient
+        strcpy(challengee_response_buffer, "Do you want to accept the challenge?\n");
+
+        if (challengee_sock != -1) {
+            // Send only to the challenge
+            write_client(challengee_sock, challengee_response_buffer);
+         }
     }
 }
 
