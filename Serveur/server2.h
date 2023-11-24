@@ -55,8 +55,11 @@ static int read_client(SOCKET sock, char *buffer);
 static void write_client(SOCKET sock, const char *buffer);
 static void send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
 static void send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
-static void challenge_another_client(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
+static void challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer, int from_server);
+static void challenge_another_client_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer, int from_server);
+static void challenge_another_client_accept(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
 static void remove_client(Client *clients, int to_remove, int *actual);
+static void handle_disconnect_client(Client client, Client *clients, int i, int actual);
 static void clear_clients(Client *clients, int actual);
 
 #endif /* guard */
