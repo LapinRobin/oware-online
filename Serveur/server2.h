@@ -21,6 +21,12 @@ typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
+typedef struct {
+    int plateau[NB_CASES];
+    int score[2];
+    int joueurActuel;
+    int position;
+} AwaleGame;
 
 #else
 
@@ -31,6 +37,10 @@ typedef struct in_addr IN_ADDR;
 #define CRLF        "\r\n"
 #define PORT         1977
 #define MAX_CLIENTS     100
+#define MAX_GAMES     50
+
+#define NB_PIONS 4
+#define NB_CASES 12
 
 #define BUF_SIZE    1024
 
