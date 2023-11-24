@@ -7,6 +7,8 @@
 
 #elif defined (linux) || defined(__APPLE__)
 
+#define NB_CASES 12
+#define NB_PIONS 4
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,8 +41,8 @@ typedef struct {
 #define MAX_CLIENTS     100
 #define MAX_GAMES     50
 
-#define NB_PIONS 4
-#define NB_CASES 12
+
+
 
 #define BUF_SIZE    1024
 

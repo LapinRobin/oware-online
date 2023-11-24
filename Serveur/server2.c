@@ -87,6 +87,7 @@ void jouerCoup(int plateau[], int score[], int joueur, int position) {
         index = (index - 1) % NB_CASES;
     }
 }
+
 int finDePartie(int plateau[], int score[]) {
     int total = 0;
 
@@ -116,14 +117,15 @@ void initGame(AwaleGame *game) {
     for (int i = 0; i < NB_CASES; i++) {
         game->plateau[i] = NB_PIONS;
     }
-    game->score = {1,1};
+    game->score[0] = 1;
+    game->score[1] = 1;
     game->joueurActuel = 1;
     int casesPossibles[NB_CASES+1];
 
-    distribuerPions(game->plateau[i]);
+    distribuerPions(game->plateau);
 
-    while (!finDePartie(game->plateau[i], game->score)) {
-        afficherPlateau(game->plateau[i], game->score);
+    while (!finDePartie(game->plateau, game->score)) {
+        afficherPlateau(game->plateau, game->score);
         casesJouables(game->plateau, game->joueurActuel, casesPossibles);
         if(casesPossibles[0] == -1){
           printf("\nToutes les graines restantes sont dans le même camp et joueur %d ne peut plus nourrir l'adversaire.\n", game->joueurActuel);
