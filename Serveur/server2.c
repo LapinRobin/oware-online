@@ -36,7 +36,7 @@ static void app(void)
    int max = sock;
    /* an array for all clients */
    Client clients[MAX_CLIENTS];
-
+   AwaleGame games[MAX_GAMES];
    fd_set rdfs;
 
    while(1)
