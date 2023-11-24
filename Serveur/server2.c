@@ -28,6 +28,24 @@ void distribuerPions(int plateau[]) {
 }
 
 int coupValide(int plateau[], int joueur, int position) {
+    int totalJoueur1 = 0, totalJoueur2 = 0;
+    for (int i = 0; i < NB_CASES / 2; i++) {
+        totalJoueur1 += plateau[i];
+    }
+    for (int i = NB_CASES / 2; i < NB_CASES; i++) {
+        totalJoueur2 += plateau[i];
+    }
+
+    if (totalJoueur1 == 0 && joueur == 2) {
+        if(position >= NB_CASES / 2 && position < NB_CASES && plateau[position] + position >= NB_CASES) return 1;
+        else return 0;
+    }
+
+    if (totalJoueur2 == 0 && joueur == 1) {
+        if(position >= 0 && position < NB_CASES / 2 && plateau[position] + position >= NB_CASES / 2) return 1;
+        else return 0;
+    }
+
     if ((joueur == 1 && position >= 0 && position < NB_CASES / 2) ||
         (joueur == 2 && position >= NB_CASES / 2 && position < NB_CASES)) {
         if (plateau[position] > 0) {
@@ -35,6 +53,17 @@ int coupValide(int plateau[], int joueur, int position) {
         }
     }
     return 0;
+}
+
+void casesJouables(int plateau[], int joueur, int cases[]) {
+    int index = 0;
+    for (int i = 0; i < NB_CASES; i++) {
+        if (coupValide(plateau, joueur, i)) {
+            cases[index] = i;
+            index++;
+        }
+    }
+    cases[index] = -1; // Marquer la fin du tableau
 }
 
 void jouerCoup(int plateau[], int score[], int joueur, int position) {
@@ -58,23 +87,29 @@ void jouerCoup(int plateau[], int score[], int joueur, int position) {
         index = (index - 1) % NB_CASES;
     }
 }
-
 int finDePartie(int plateau[], int score[]) {
-    int totalJoueur1 = 0, totalJoueur2 = 0;
+    int total = 0;
 
     if(score[0] > NB_CASES*NB_PIONS/2 || score[1] > NB_CASES*NB_PIONS/2) return 1;
 
-    for (int i = 0; i < NB_CASES / 2; i++) {
-        totalJoueur1 += plateau[i];
-    }
-    for (int i = NB_CASES / 2; i < NB_CASES; i++) {
-        totalJoueur2 += plateau[i];
+    for (int i = 0; i < NB_CASES; i++) {
+        total += plateau[i];
     }
 
-    if (totalJoueur1 == 0 || totalJoueur2 == 0) {
+    if (total <= 6) {
         return 1;
     }
+
     return 0;
+}
+
+void recolteGraines(int plateau[], int score[], int joueurActuel){
+    int total = 0;
+    for (int i = 0; i < NB_CASES; i++) {
+        total += plateau[i];
+        plateau[i] = 0;
+    }
+    score[joueurActuel-1] += total;
 }
 
 void initGame(AwaleGame *game) {
@@ -83,20 +118,32 @@ void initGame(AwaleGame *game) {
     }
     game->score = {1,1};
     game->joueurActuel = 1;
+    int casesPossibles[NB_CASES+1];
+
     distribuerPions(game->plateau[i]);
 
     while (!finDePartie(game->plateau[i], game->score)) {
         afficherPlateau(game->plateau[i], game->score);
-
-        printf("\nJoueur %d, entrez la position du coup (0-11) : ", game->joueurActuel);
-        scanf("%d", &game->position);
-
-        if (coupValide(game->plateau, game->joueurActuel, game->position)) {
-            jouerCoup(game->plateau, game->score, game->joueurActuel, game->position);
-            game->joueurActuel = (game->joueurActuel == 1) ? 2 : 1;
+        casesJouables(game->plateau, game->joueurActuel, casesPossibles);
+        if(casesPossibles[0] == -1){
+          printf("\nToutes les graines restantes sont dans le même camp et joueur %d ne peut plus nourrir l'adversaire.\n", game->joueurActuel);
+          recolteGraines(game->plateau, game->score, game->joueurActuel);
         } else {
-            printf("Coup invalide. Veuillez choisir une position valide.\n");
+          printf("Cases jouables pour le joueur %d :\n", game->joueurActuel);
+          for (int i = 0; casesPossibles[i] != -1; i++) {
+              printf("%d ", casesPossibles[i]);
+          }
+          printf("\n");
+          printf("\nJoueur %d, entrez la position du coup: ", game->joueurActuel);
+          scanf("%d", &game->position);
+          if (coupValide(game->plateau, game->joueurActuel, game->position)) {
+              jouerCoup(game->plateau, game->score, game->joueurActuel, game->position);
+              game->joueurActuel = (game->joueurActuel == 1) ? 2 : 1;
+          } else {
+              printf("Coup invalide. Veuillez choisir une position valide.\n");
+          }
         }
+
     }
 
     printf("\nPartie terminée. Score final :\n");
