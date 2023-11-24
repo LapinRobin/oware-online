@@ -21,6 +21,12 @@ typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
+typedef struct {
+    int plateau[NB_CASES];
+    int score[2];
+    int joueurActuel;
+    int position;
+} AwaleGame;
 
 #else
 
