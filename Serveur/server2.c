@@ -214,8 +214,8 @@ static void challenge_another_client(Client *clients, Client client, int actual,
         write_client(client.sock, list_buffer);
     }
 
-    char challenge_buffer[1024]; // Assuming 1024 is sufficient
-    strcpy(challenge_buffer, "Who do you want to challenge?\n");
+    char challenge_buffer[1024]; 
+    strcpy(challenge_buffer, "Who do you want to fight?\n");
 
     if (sender_sock != -1) {
         // Send only to the requesting client
@@ -239,16 +239,16 @@ static void challenge_another_client(Client *clients, Client client, int actual,
     if (challengee_sock == -1) {
         // Challengee not found
         char not_found_buffer[1024]; // Assuming 1024 is sufficient
-        strcpy(not_found_buffer, "Challengee not found\n");
+        strcpy(not_found_buffer, "Opponent not found\n");
 
         if (sender_sock != -1) {
             // Send only to the requesting client
             write_client(client.sock, not_found_buffer);
         }
     } else {
-        // Challengee found
+        // Opponent found
         char challenge_buffer[1024]; // Assuming 1024 is sufficient
-        strcpy(challenge_buffer, "Challengee found\n");
+        strcpy(challenge_buffer, "Opponent found\n");
 
         if (sender_sock != -1) {
             // Send only to the requesting client
@@ -256,7 +256,7 @@ static void challenge_another_client(Client *clients, Client client, int actual,
         }
 
         char challengee_response_buffer[1024]; // Assuming 1024 is sufficient
-        strcpy(challengee_response_buffer, "Do you want to accept the challenge?\n");
+        strcpy(challengee_response_buffer, "Do you want to accept the fight?\n");
 
         if (challengee_sock != -1) {
             // Send only to the challenge
