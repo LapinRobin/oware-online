@@ -6,95 +6,97 @@
 #include "server2.h"
 #include "client2.h"
 
-void afficherPlateau(int plateau[], int score[]) {
-    printf("\nPlateau de jeu :\n");
-    printf("Joueur 1 (en bas) : ");
-    for (int i = 0; i < NB_CASES / 2; i++) {
-        printf("%d ", plateau[i]);
+
+void displayBoard(int board[], int score[]) {
+    printf("\nGame Board:\n");
+    printf("Player 1 (bottom): ");
+    for (int i = 0; i < NB_HOUSES_PER; i++) {
+        printf("%d ", board[i]);
     }
     printf("\nscore: %d ", score[0]);
-    printf("\nJoueur 2 (en haut) : ");
-    for (int i = NB_CASES - 1; i >= NB_CASES / 2; i--) {
-        printf("%d ", plateau[i]);
+    printf("\nPlayer 2 (top): ");
+    for (int i = NB_HOUSES_TOTAL - 1; i >= NB_HOUSES_PER; i--) {
+        printf("%d ", board[i]);
     }
     printf("\nscore: %d ", score[1]);
     printf("\n");
 }
 
-void distribuerPions(int plateau[]) {
-    for (int i = 0; i < NB_CASES; i++) {
-        plateau[i] = NB_PIONS;
+void distributePieces(int board[]) {
+    for (int i = 0; i < NB_HOUSES_TOTAL; i++) {
+        board[i] = NB_SEEDS;
     }
 }
 
-int coupValide(int plateau[], int joueur, int position) {
-    int totalJoueur1 = 0, totalJoueur2 = 0;
-    for (int i = 0; i < NB_CASES / 2; i++) {
-        totalJoueur1 += plateau[i];
+int isValidMove(int board[], int player, int position) {
+    int totalPlayer1 = 0, totalPlayer2 = 0;
+    for (int i = 0; i < NB_HOUSES_PER; i++) {
+        totalPlayer1 += board[i];
     }
-    for (int i = NB_CASES / 2; i < NB_CASES; i++) {
-        totalJoueur2 += plateau[i];
+    for (int i = NB_HOUSES_PER; i < NB_HOUSES_TOTAL; i++) {
+        totalPlayer2 += board[i];
     }
 
-    if (totalJoueur1 == 0 && joueur == 2) {
-        if(position >= NB_CASES / 2 && position < NB_CASES && plateau[position] + position >= NB_CASES) return 1;
+    if (totalPlayer1 == 0 && player == 2) {
+        if(position >= NB_HOUSES_PER && position < NB_HOUSES_TOTAL && board[position] + position >= NB_HOUSES_PER) return 1;
         else return 0;
     }
 
-    if (totalJoueur2 == 0 && joueur == 1) {
-        if(position >= 0 && position < NB_CASES / 2 && plateau[position] + position >= NB_CASES / 2) return 1;
+    if (totalPlayer2 == 0 && player == 1) {
+        if(position >= 0 && position < NB_HOUSES_PER && board[position] + position >= NB_HOUSES_PER) return 1;
         else return 0;
     }
 
-    if ((joueur == 1 && position >= 0 && position < NB_CASES / 2) ||
-        (joueur == 2 && position >= NB_CASES / 2 && position < NB_CASES)) {
-        if (plateau[position] > 0) {
+    if ((player == 1 && position >= 0 && position < NB_HOUSES_PER) ||
+        (player == 2 && position >= NB_HOUSES_PER && position < NB_HOUSES_TOTAL)) {
+        if (board[position] > 0) {
             return 1;
         }
     }
     return 0;
 }
 
-void casesJouables(int plateau[], int joueur, int cases[]) {
+void playablePositions(int board[], int player, int positions[]) {
     int index = 0;
-    for (int i = 0; i < NB_CASES; i++) {
-        if (coupValide(plateau, joueur, i)) {
-            cases[index] = i;
+    for (int i = 0; i < NB_HOUSES_TOTAL; i++) {
+        if (isValidMove(board, player, i)) {
+            positions[index] = i;
             index++;
         }
     }
-    cases[index] = -1; // Marquer la fin du tableau
+    positions[index] = -1; // Mark the end of the array
 }
 
-void jouerCoup(int plateau[], int score[], int joueur, int position) {
+// Play a move
+void playMove(int board[], int score[], int player, int position) {
     int index = position;
-    int pions = plateau[position];
-    plateau[position] = 0;
+    int pieces = board[position];
+    board[position] = 0;
 
-    while (pions > 0) {
-        index = (index + 1) % NB_CASES;
+    while (pieces > 0) {
+        index = (index + 1) % NB_HOUSES_TOTAL;
         if (index == position) {
             continue;
         }
-        plateau[index]++;
-        pions--;
+        board[index]++;
+        pieces--;
     }
 
-    while ((joueur == 1 && index >= NB_CASES / 2 && index < NB_CASES && (plateau[index] == 2 || plateau[index] == 3)) || 
-        (joueur == 2 && index >= 0 && index < NB_CASES / 2 && (plateau[index] == 2 || plateau[index] == 3))) {
-        score[joueur-1] += plateau[index];
-        plateau[index] = 0;
-        index = (index - 1) % NB_CASES;
+    while ((player == 1 && index >= NB_HOUSES_PER && index < NB_HOUSES_TOTAL && (board[index] == 2 || board[index] == 3)) ||
+           (player == 2 && index >= 0 && index < NB_HOUSES_PER && (board[index] == 2 || board[index] == 3))) {
+        score[player-1] += board[index];
+        board[index] = 0;
+        index = (index - 1) % NB_HOUSES_TOTAL;
     }
 }
 
-int finDePartie(int plateau[], int score[]) {
+int isGameOver(int board[], int score[]) {
     int total = 0;
 
-    if(score[0] > NB_CASES*NB_PIONS/2 || score[1] > NB_CASES*NB_PIONS/2) return 1;
+    if(score[0] > NB_SEEDS * NB_HOUSES_PER || score[1] > NB_SEEDS * NB_HOUSES_PER) return 1;
 
-    for (int i = 0; i < NB_CASES; i++) {
-        total += plateau[i];
+    for (int i = 0; i < NB_HOUSES_TOTAL; i++) {
+        total += board[i];
     }
 
     if (total <= 6) {
@@ -104,53 +106,54 @@ int finDePartie(int plateau[], int score[]) {
     return 0;
 }
 
-void recolteGraines(int plateau[], int score[], int joueurActuel){
+void collectSeeds(int board[], int score[], int currentPlayer){
     int total = 0;
-    for (int i = 0; i < NB_CASES; i++) {
-        total += plateau[i];
-        plateau[i] = 0;
+    for (int i = 0; i < NB_HOUSES_TOTAL; i++) {
+        total += board[i];
+        board[i] = 0;
     }
-    score[joueurActuel-1] += total;
+    score[currentPlayer-1] += total;
 }
 
 void initGame(AwaleGame *game) {
-    for (int i = 0; i < NB_CASES; i++) {
-        game->plateau[i] = NB_PIONS;
+    for (int i = 0; i < NB_HOUSES_TOTAL; i++) {
+        game->board[i] = NB_SEEDS;
     }
-    game->score[0] = 1;
-    game->score[1] = 1;
-    game->joueurActuel = 1;
-    int casesPossibles[NB_CASES+1];
+    game->score[0] = 0;
+    game->score[1] = 0;
+    game->currentPlayer = 1;
+    int possibleCases[NB_HOUSES_TOTAL+1];
 
-    distribuerPions(game->plateau);
+    distributePieces(game->board);
 
-    while (!finDePartie(game->plateau, game->score)) {
-        afficherPlateau(game->plateau, game->score);
-        casesJouables(game->plateau, game->joueurActuel, casesPossibles);
-        if(casesPossibles[0] == -1){
-          printf("\nToutes les graines restantes sont dans le même camp et joueur %d ne peut plus nourrir l'adversaire.\n", game->joueurActuel);
-          recolteGraines(game->plateau, game->score, game->joueurActuel);
+    while (!isGameOver(game->board, game->score)) {
+        displayBoard(game->board, game->score);
+        playablePositions(game->board, game->currentPlayer, possibleCases);
+        if(possibleCases[0] == -1){
+            printf("\nAll remaining pieces are in the same camp and player %d can no longer feed the opponent.\n", game->currentPlayer);
+            collectSeeds(game->board, game->score, game->currentPlayer);
         } else {
-          printf("Cases jouables pour le joueur %d :\n", game->joueurActuel);
-          for (int i = 0; casesPossibles[i] != -1; i++) {
-              printf("%d ", casesPossibles[i]);
-          }
-          printf("\n");
-          printf("\nJoueur %d, entrez la position du coup: ", game->joueurActuel);
-          scanf("%d", &game->position);
-          if (coupValide(game->plateau, game->joueurActuel, game->position)) {
-              jouerCoup(game->plateau, game->score, game->joueurActuel, game->position);
-              game->joueurActuel = (game->joueurActuel == 1) ? 2 : 1;
-          } else {
-              printf("Coup invalide. Veuillez choisir une position valide.\n");
-          }
+            printf("Playable positions for player %d:\n", game->currentPlayer);
+            for (int i = 0; possibleCases[i] != -1; i++) {
+                printf("%d ", possibleCases[i]);
+            }
+            printf("\n");
+            printf("\nPlayer %d, enter the position of the move: ", game->currentPlayer);
+            scanf("%d", &game->position);
+            if (isValidMove(game->board, game->currentPlayer, game->position)) {
+                playMove(game->board, game->score, game->currentPlayer, game->position);
+                game->currentPlayer = (game->currentPlayer == 1) ? 2 : 1;
+            } else {
+                printf("Invalid move. Please choose a valid position.\n");
+            }
         }
 
     }
 
-    printf("\nPartie terminée. Score final :\n");
-    afficherPlateau(game->plateau, game->score);
+    printf("\nGame over. Final score:\n");
+    displayBoard(game->board, game->score);
 }
+
 
 
 static void init(void)

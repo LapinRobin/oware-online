@@ -7,8 +7,9 @@
 
 #elif defined (linux) || defined(__APPLE__)
 
-#define NB_CASES 12
-#define NB_PIONS 4
+#define NB_HOUSES_TOTAL 12 /* number of houses on the board */
+#define NB_HOUSES_PER 6 /* number of houses per player */
+#define NB_SEEDS 4 /* number of seeds per house */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -16,6 +17,7 @@
 #include <arpa/inet.h>
 #include <unistd.h> /* close */
 #include <netdb.h> /* gethostbyname */
+
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
 #define closesocket(s) close(s)
@@ -24,9 +26,9 @@ typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
 typedef struct {
-    int plateau[NB_CASES];
+    int board[NB_HOUSES_TOTAL];
     int score[2];
-    int joueurActuel;
+    int currentPlayer;
     int position;
 } AwaleGame;
 
@@ -40,9 +42,6 @@ typedef struct {
 #define PORT         1977
 #define MAX_CLIENTS     100
 #define MAX_GAMES     50
-
-
-
 
 #define BUF_SIZE    1024
 
@@ -64,4 +63,4 @@ static void remove_client(Client *clients, int to_remove, int *actual);
 static void handle_disconnect_client(Client client, Client *clients, int i, int actual);
 static void clear_clients(Client *clients, int actual);
 
-#endif /* guard */
+#endif /* SERVER_H */
