@@ -17,7 +17,18 @@ struct Client {
     char name[BUF_SIZE];
     ClientState state;
     Client *opponent;
-
+    int id;
+    int score;
 };
+
+typedef struct {
+    int board[NB_HOUSES_TOTAL];
+    int score[2];
+    int currentPlayer;
+    int position;
+    Client *player1;
+    Client *player2;
+    char status[BUF_SIZE];
+} AwaleGame;
 
 #endif /* guard */
