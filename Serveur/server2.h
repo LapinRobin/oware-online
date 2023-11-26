@@ -25,12 +25,7 @@ typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
-typedef struct {
-    int board[NB_HOUSES_TOTAL];
-    int score[2];
-    int currentPlayer;
-    int position;
-} AwaleGame;
+
 
 #else
 
@@ -65,7 +60,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
 
 static void handle_client_input(Client *clients, Client *client, int actual, int max);
 
-static void handle_client_state(Client *clients, Client *client, int actual, fd_set *rdfs, char *buffer, int i);
+static void handle_client_state(Client *clients, Client *client, int actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[]);
 
 
 
