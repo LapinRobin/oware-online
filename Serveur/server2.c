@@ -137,7 +137,7 @@ void playMove(int board[], int score[], int player, int position)
     }
 }
 
-int isGameOver(char status[], int board[], int score[])
+int isGameOver(AwaleGame* game, char status[], int board[], int score[])
 {
     int total = 0;
 
@@ -161,10 +161,12 @@ int isGameOver(char status[], int board[], int score[])
     {
         if (score[0] > score[1])
         {
+            game->player1->score++;
             strcat(status, "Player 1 won.\n");
         }
         else if (score[0] < score[1])
         {
+            game->player2->score++;
             strcat(status, "Player 2 won.\n");
         }
         else
@@ -222,7 +224,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
     write_client(game->player1->sock, "You are player1, you move first.\n");
     write_client(game->player2->sock, "You are player2, you move after player1 moved.\n");
 
-    while (!end && !isGameOver(game->status, game->board, game->score))
+    while (!end && !isGameOver(game, game->status, game->board, game->score))
     {
         displayBoard(game, game->board, game->score);
         playablePositions(game->board, game->currentPlayer, possibleCases);
@@ -278,7 +280,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
             c = read_client(player->sock, buffer);
             if (c == 0)
             {
-                printf("123");
+                
                 handle_disconnect_client(*player, clients, player->id, actual);
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
@@ -645,11 +647,16 @@ static void
 send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server)
 {
     char list_buffer[1024]; // Assuming 1024 is sufficient
+    char numStr[1024];
     strcpy(list_buffer, "Connected clients:\n");
 
     for (int i = 0; i < actual; i++)
     {
+        numStr[0] = '\0';
         strcat(list_buffer, clients[i].name);
+        strcat(list_buffer, " score : ");
+        sprintf(numStr, "%d", clients[i].score);
+        strcat(list_buffer, numStr);
         strcat(list_buffer, "\n");
         // printf("Client %d: %s\n", i, clients[i].name);
     }
