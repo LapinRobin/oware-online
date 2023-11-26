@@ -7,8 +7,9 @@
 
 #elif defined (linux) || defined(__APPLE__)
 
-#define NB_CASES 12
-#define NB_PIONS 4
+#define NB_HOUSES_TOTAL 12 /* number of houses on the board */
+#define NB_HOUSES_PER 6 /* number of houses per player */
+#define NB_SEEDS 4 /* number of seeds per house */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -16,6 +17,7 @@
 #include <arpa/inet.h>
 #include <unistd.h> /* close */
 #include <netdb.h> /* gethostbyname */
+
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
 #define closesocket(s) close(s)
@@ -24,9 +26,9 @@ typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
 typedef struct {
-    int plateau[NB_CASES];
+    int board[NB_HOUSES_TOTAL];
     int score[2];
-    int joueurActuel;
+    int currentPlayer;
     int position;
 } AwaleGame;
 
@@ -41,27 +43,54 @@ typedef struct {
 #define MAX_CLIENTS     100
 #define MAX_GAMES     50
 
-
-
-
 #define BUF_SIZE    1024
 
 #include "client2.h"
 
 static void init(void);
+
 static void end(void);
+
 static void app(void);
+
 static int init_connection(void);
+
 static void end_connection(int sock);
+
 static int read_client(SOCKET sock, char *buffer);
+
 static void write_client(SOCKET sock, const char *buffer);
-static void send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
-static void send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
-static void challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer, int from_server);
-static void challenge_another_client_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer, int from_server);
-static void challenge_another_client_accept(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *max);
+
+static void handle_client_input(Client *clients, Client *client, int actual, int max);
+
+static void handle_client_state(Client *clients, Client *client, int actual, fd_set *rdfs, char *buffer, int i);
+
+
+
+static void
+send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
+
+static void
+send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
+challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                              int from_server);
+
+static void
+challenge_another_client_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                                 int from_server);
+
+static void
+challenge_another_client_accept(Client *clients, Client client, int actual, int sender_sock, const char *buffer,
+                                int from_server);
+
 static void remove_client(Client *clients, int to_remove, int *actual);
+
 static void handle_disconnect_client(Client client, Client *clients, int i, int actual);
+
 static void clear_clients(Client *clients, int actual);
 
-#endif /* guard */
+#endif /* SERVER_H */

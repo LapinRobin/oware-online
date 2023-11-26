@@ -12,12 +12,11 @@ typedef enum {
     BUSY
 } ClientState;
 
-struct Client
-{
-   SOCKET sock;
-   char name[BUF_SIZE];
-   ClientState state;
-   Client *opponent;
+struct Client {
+    SOCKET sock;
+    char name[BUF_SIZE];
+    ClientState state;
+    Client *opponent;
 
 };
 
