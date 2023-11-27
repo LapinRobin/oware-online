@@ -6,7 +6,7 @@
 #include "server2.h"
 #include "client2.h"
 
-void displayBoard(AwaleGame *game, int board[], int score[])
+void display_board(AwaleGame *game, int board[], int score[])
 {
     char buffer[BUF_SIZE];
     char numStr[2];
@@ -47,7 +47,7 @@ void displayBoard(AwaleGame *game, int board[], int score[])
     write_client(game->player2->sock, buffer);
 }
 
-void distributePieces(int board[])
+void distribute_pieces(int board[])
 {
     for (int i = 0; i < NB_HOUSES_TOTAL; i++)
     {
@@ -55,7 +55,7 @@ void distributePieces(int board[])
     }
 }
 
-int isValidMove(int board[], int player, int position)
+int is_valid_move(int board[], int player, int position)
 {
     int totalPlayer1 = 0, totalPlayer2 = 0;
     for (int i = 0; i < NB_HOUSES_PER; i++)
@@ -95,12 +95,12 @@ int isValidMove(int board[], int player, int position)
     return 0;
 }
 
-void playablePositions(int board[], int player, int positions[])
+void playable_positions(int board[], int player, int positions[])
 {
     int index = 0;
     for (int i = 0; i < NB_HOUSES_TOTAL; i++)
     {
-        if (isValidMove(board, player, i))
+        if (is_valid_move(board, player, i))
         {
             positions[index] = i;
             index++;
@@ -110,7 +110,7 @@ void playablePositions(int board[], int player, int positions[])
 }
 
 // Play a move
-void playMove(int board[], int score[], int player, int position)
+void play_move(int board[], int score[], int player, int position)
 {
     int index = position;
     int pieces = board[position];
@@ -137,7 +137,7 @@ void playMove(int board[], int score[], int player, int position)
     }
 }
 
-int isGameOver(AwaleGame* game, char status[], int board[], int score[])
+int is_game_over(AwaleGame* game, char status[], int board[], int score[])
 {
     int total = 0;
 
@@ -179,7 +179,7 @@ int isGameOver(AwaleGame* game, char status[], int board[], int score[])
     return 0;
 }
 
-void collectSeeds(int board[], int score[], int currentPlayer)
+void collect_seeds(int board[], int score[], int currentPlayer)
 {
     int total = 0;
     for (int i = 0; i < NB_HOUSES_TOTAL; i++)
@@ -190,7 +190,7 @@ void collectSeeds(int board[], int score[], int currentPlayer)
     score[currentPlayer - 1] += total;
 }
 
-int isNumber(char *str)
+int is_number(char *str)
 {
     int i = 0;
 
@@ -205,7 +205,7 @@ int isNumber(char *str)
     return 1;
 }
 
-void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
+void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
 {
     for (int i = 0; i < NB_HOUSES_TOTAL; i++)
     {
@@ -219,15 +219,15 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
     char numStr[BUF_SIZE];
     sprintf(numStr, "%d", game->currentPlayer);
 
-    distributePieces(game->board);
+    distribute_pieces(game->board);
     int end = 0;
     write_client(game->player1->sock, "You are player1, you move first.\n");
     write_client(game->player2->sock, "You are player2, you move after player1 moved.\n");
 
-    while (!end && !isGameOver(game, game->status, game->board, game->score))
+    while (!end && !is_game_over(game, game->status, game->board, game->score))
     {
-        displayBoard(game, game->board, game->score);
-        playablePositions(game->board, game->currentPlayer, possibleCases);
+        display_board(game, game->board, game->score);
+        playable_positions(game->board, game->currentPlayer, possibleCases);
         Client *player;
         Client *anotherPlayer;
         if (game->currentPlayer == 1)
@@ -252,7 +252,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
             strcat(buffer, " can no longer feed the opponent.\n");
             write_client(game->player1->sock, buffer);
             write_client(game->player2->sock, buffer);
-            collectSeeds(game->board, game->score, game->currentPlayer);
+            collect_seeds(game->board, game->score, game->currentPlayer);
         }
         else
         {
@@ -310,7 +310,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
                 strcat(game->status, " won.\n");
                 end = 1;
             }
-            else if (isNumber(buffer))
+            else if (is_number(buffer))
             {
                 game->position = atoi(buffer);
                 check = 1;
@@ -320,9 +320,9 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
                 write_client(player->sock, "Invalid input.\n");
             }
 
-            if (check && isValidMove(game->board, game->currentPlayer, game->position))
+            if (check && is_valid_move(game->board, game->currentPlayer, game->position))
             {
-                playMove(game->board, game->score, game->currentPlayer, game->position);
+                play_move(game->board, game->score, game->currentPlayer, game->position);
                 game->currentPlayer = (game->currentPlayer == 1) ? 2 : 1;
             }
             else if (!end)
@@ -334,7 +334,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
 
     write_client(game->player1->sock, "\nGame over. Final score:\n");
     write_client(game->player2->sock, "\nGame over. Final score:\n");
-    displayBoard(game, game->board, game->score);
+    display_board(game, game->board, game->score);
     buffer[0] = '\0';
     strcat(buffer, "\nGame status : ");
     strcat(buffer, game->status);
@@ -493,7 +493,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     // start game
                     game->player1 = client->opponent;
                     game->player2 = client;
-                    initGame(game, rdfs, clients, *actual);
+                    init_game(game, rdfs, clients, *actual);
                 }
                 else if (strcmp(buffer, "no") == 0)
                 {
