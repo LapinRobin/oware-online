@@ -281,7 +281,7 @@ void initGame(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
             if (c == 0)
             {
                 
-                handle_disconnect_client(*player, clients, player->id, actual);
+                handle_disconnect_client(clients,*player, player->id, &actual);
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
                 strcat(game->status, "Player ");
@@ -415,7 +415,7 @@ static void handle_client_input(Client *clients, Client *client, int actual, int
 {
 }
 
-static void handle_client_state(Client *clients, Client *client, int actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[])
+static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[])
 {
     int c;
     buffer[0] = '\0';
@@ -427,26 +427,25 @@ static void handle_client_state(Client *clients, Client *client, int actual, fd_
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
-                handle_disconnect_client(*client, clients, i, actual);
+                handle_disconnect_client(clients, *client, i, actual);
             }
-            else if ((strcmp(buffer, "ls") == 0) || (strcmp(buffer, "list") == 0))
+            else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
             {
-                send_list_of_clients(clients, *client, actual, client->sock, buffer, 0);
+                send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0);
             }
-            else if (strcmp(buffer, "v") == 0)
+            else if (strcmp(buffer, ":v") == 0)
             {
                 printf("Client %s is challenging\n", client->name);
                 client->state = CHALLENGE;
-                challenge_another_client_init(clients, client, actual, client->sock, buffer, 0);
+                challenge_another_client_init(clients, client, *actual, client->sock, buffer, 0);
             }
-            else if (strcmp(buffer, "exit") == 0)
+            else if (strcmp(buffer, ":exit") == 0)
             {
-                closesocket(client->sock);
-                remove_client(clients, actual, client);
+                handle_disconnect_client(clients, *client, i, actual);
             }
             else
             {
-                send_message_to_all_clients(clients, *client, actual, buffer, 0);
+                send_message_to_all_clients(clients, *client, *actual, buffer, 0);
             }
         }
         break;
@@ -457,11 +456,11 @@ static void handle_client_state(Client *clients, Client *client, int actual, fd_
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
-                handle_disconnect_client(*client, clients, i, actual);
+                handle_disconnect_client(clients, *client, i, actual);
             }
             else
             {
-                challenge_another_client_request(clients, client, actual, client->sock, buffer, 0);
+                challenge_another_client_request(clients, client, *actual, client->sock, buffer, 0);
             }
         }
         break;
@@ -474,7 +473,7 @@ static void handle_client_state(Client *clients, Client *client, int actual, fd_
             {
                 client->opponent->opponent = NULL;
                 client->opponent = NULL;
-                handle_disconnect_client(*client, clients, i, actual);
+                handle_disconnect_client(clients, *client, i, actual);
             }
             else
             {
@@ -494,7 +493,7 @@ static void handle_client_state(Client *clients, Client *client, int actual, fd_
                     // start game
                     game->player1 = client->opponent;
                     game->player2 = client;
-                    initGame(game, rdfs, clients, actual);
+                    initGame(game, rdfs, clients, *actual);
                 }
                 else if (strcmp(buffer, "no") == 0)
                 {
@@ -585,7 +584,7 @@ static void app(void)
         {
             if (FD_ISSET(clients[i].sock, &rdfs))
             {
-                handle_client_state(clients, &clients[i], actual, &rdfs, buffer, i, (games + game_index[0]), game_index);
+                handle_client_state(clients, &clients[i], &actual, &rdfs, buffer, i, (games + game_index[0]), game_index);
             }
         }
     }
@@ -596,21 +595,21 @@ static void app(void)
 
 static void clear_clients(Client *clients, int actual)
 {
-    int i = 0;
-    for (i = 0; i < actual; i++)
+    for (int i = 0; i < actual; i++)
     {
         closesocket(clients[i].sock);
     }
 }
 
-static void handle_disconnect_client(Client client, Client *clients, int i, int actual)
+static void handle_disconnect_client(Client *clients, Client client, int i, int *actual)
 {
-    char buffer[BUF_SIZE];
+    // char buffer[BUF_SIZE];
     closesocket(clients[i].sock);
-    remove_client(clients, i, &actual);
-    strncpy(buffer, client.name, BUF_SIZE - 1);
-    strncat(buffer, " disconnected !", BUF_SIZE - strlen(buffer) - 1);
-    send_message_to_all_clients(clients, client, actual, buffer, 1);
+    remove_client(clients, i, actual);
+    printf("%s disconnected\n", client.name);
+    // strncpy(buffer, client.name, BUF_SIZE - 1);
+    // strncat(buffer, " disconnected !", BUF_SIZE - strlen(buffer) - 1);
+    // send_message_to_all_clients(clients, client, actual, buffer, 1);
 }
 
 static void remove_client(Client *clients, int to_remove, int *actual)

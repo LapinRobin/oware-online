@@ -60,7 +60,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
 
 static void handle_client_input(Client *clients, Client *client, int actual, int max);
 
-static void handle_client_state(Client *clients, Client *client, int actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[]);
+static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[]);
 
 
 
@@ -84,7 +84,7 @@ challenge_another_client_accept(Client *clients, Client client, int actual, int 
 
 static void remove_client(Client *clients, int to_remove, int *actual);
 
-static void handle_disconnect_client(Client client, Client *clients, int i, int actual);
+static void handle_disconnect_client(Client *clients, Client client, int i, int *actual);
 
 static void clear_clients(Client *clients, int actual);
 
