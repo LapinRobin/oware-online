@@ -521,8 +521,15 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
         break;
 
     case BUSY:
-        // Add logic for BUSY state if necessary
-        break;
+
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+        }
 
     default:
         fprintf(stderr, "Unknown state for client %s\n", client->name);
@@ -546,7 +553,7 @@ static void app(void)
 
     while (1)
     {
-        int i = 0;
+
         FD_ZERO(&rdfs);
 
         /* add STDIN_FILENO */
@@ -556,7 +563,7 @@ static void app(void)
         FD_SET(sock, &rdfs);
 
         /* add socket of each client */
-        for (i = 0; i < actual; i++)
+        for (int i = 0; i < actual; i++)
         {
             FD_SET(clients[i].sock, &rdfs);
         }
