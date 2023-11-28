@@ -43,7 +43,7 @@ void display_board(AwaleGame *game, int board[], int score[], Client *client)
     numStr[0] = '\0';
     sprintf(numStr, "%d", score[1]);
     strcat(buffer, numStr);
-    strcat(buffer, " ");
+    strcat(buffer, " \n");
 
     write_client(client->sock, buffer);
 }
