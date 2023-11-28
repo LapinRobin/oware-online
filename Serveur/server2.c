@@ -478,10 +478,10 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     init_game(current_game);
                     write_client(current_game->player1->sock, "You are player1, you move first.\n");
                     write_client(current_game->player2->sock, "You are player2, you move after player1 moved.\n");
-                    client->currentGame = game_index[0];
-                    client->opponent->currentGame = game_index[0];
-                    client->state = PLAYER1;
-                    client->opponent->state = PLAYER2;
+                    current_game->player1->currentGame = game_index[0];
+                    current_game->player2->currentGame = game_index[0];
+                    current_game->player1->state = PLAYER1;
+                    current_game->player2->opponent->state = PLAYER2;
                     game_play(current_game);
 
                     game_index[0]++;
