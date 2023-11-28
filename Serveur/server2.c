@@ -205,7 +205,7 @@ int is_number(char *str)
     return 1;
 }
 
-void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
+void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int* actual)
 {
     for (int i = 0; i < NB_HOUSES_TOTAL; i++)
     {
@@ -280,8 +280,8 @@ void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
             c = read_client(player->sock, buffer);
             if (c == 0)
             {
-                
-                handle_disconnect_client(clients,*player, (clients-player), &actual);
+                printf("%d/n", (player-clients));
+                handle_disconnect_client(clients,*player, (player-clients), actual);
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
                 strcat(game->status, "Player ");
@@ -293,6 +293,7 @@ void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
                 
                 anotherPlayer->opponent = NULL;
                 anotherPlayer->state = IDLE;
+                printf("%s/n", anotherPlayer->name);
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
@@ -309,6 +310,7 @@ void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
                 strcat(game->status, numStr);
                 strcat(game->status, " won.\n");
                 end = 1;
+
             }
             else if (is_number(buffer))
             {
@@ -492,7 +494,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     // start game
                     game->player1 = client->opponent;
                     game->player2 = client;
-                    init_game(game, rdfs, clients, *actual);
+                    init_game(game, rdfs, clients, actual);
                 }
                 else if (strcmp(buffer, "no") == 0)
                 {
