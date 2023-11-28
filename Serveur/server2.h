@@ -53,11 +53,17 @@ void playable_positions(int board[], int player, int positions[]);
 void play_move(int board[], int score[], int player, int position);
 
 int is_game_over(AwaleGame *game, char status[], int board[], int score[]);
+
 void collect_seeds(int board[], int score[], int currentPlayer);
+
 int is_number(char *str);
+
 void init_game(AwaleGame *game);
+
 void game_play(AwaleGame *game);
+
 void game_over(AwaleGame *game);
+
 static void init(void);
 
 static void end(void);

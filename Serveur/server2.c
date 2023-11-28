@@ -381,6 +381,7 @@ static void handle_client_input(Client *clients, Client *client, int actual, int
 static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame games[], AwaleGame *current_game, int game_index[])
 {
     int c;
+    AwaleGame *game;
     buffer[0] = '\0';
     switch (client->state)
     {
@@ -499,7 +500,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
         break;
 
     case PLAYER1:
-        AwaleGame *game = (games + client->currentGame);
+        game = (games + client->currentGame);
         char numStr[BUF_SIZE];
         buffer[0] = '\0';
         numStr[0] = '\0';
