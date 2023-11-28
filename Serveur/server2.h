@@ -93,6 +93,9 @@ static void
 send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
 
 static void
+send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
 challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
                               int from_server);
 

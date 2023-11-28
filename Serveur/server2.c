@@ -143,6 +143,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
     if (score[0] > NB_SEEDS * NB_HOUSES_PER)
     {
         game->player1->score++;
+        status[0] = '\0';
         strcat(status, "Player 1 ");
         strcat(game->status, " name : ");
         strcat(game->status, game->player1->name);
@@ -152,6 +153,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
     if (score[1] > NB_SEEDS * NB_HOUSES_PER)
     {
         game->player2->score++;
+        status[0] = '\0';
         strcat(status, "Player 2");
         strcat(game->status, " name : ");
         strcat(game->status, game->player2->name);
@@ -169,6 +171,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         if (score[0] > score[1])
         {
             game->player1->score++;
+            status[0] = '\0';
             strcat(status, "Player 1");
             strcat(game->status, " name : ");
             strcat(game->status, game->player1->name);
@@ -177,6 +180,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         else if (score[0] < score[1])
         {
             game->player2->score++;
+            status[0] = '\0';
             strcat(status, "Player 2");
             strcat(game->status, " name : ");
             strcat(game->status, game->player2->name);
@@ -184,6 +188,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         }
         else
         {
+            status[0] = '\0';
             strcat(status, "Two players tie.\n");
         }
         return 1;
@@ -227,6 +232,7 @@ void init_game(AwaleGame *game)
     game->score[0] = 0;
     game->score[1] = 0;
     game->currentPlayer = 1;
+    strcat(game->status, "In game");
     distribute_pieces(game->board);
 }
 
@@ -253,6 +259,7 @@ void game_play(AwaleGame *game)
         write_client(game->player1->sock, buffer);
         write_client(game->player2->sock, buffer);
         collect_seeds(game->board, game->score, game->currentPlayer);
+        is_game_over(game, game->status, game->board, game->score);
         game_over(game);
     }
     else
@@ -397,11 +404,16 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 write_client(client->sock, "Available commands:\n");
                 write_client(client->sock, "`:ls` or `:list` - list all connected clients\n");
+                write_client(client->sock, "`:lsg` or `:listGames` - list all games\n");
                 write_client(client->sock, "`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
             {
                 send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0);
+            }
+            else if ((strcmp(buffer, ":lsg") == 0) || (strcmp(buffer, ":listGames") == 0))
+            {
+                send_list_of_games(games, game_index, *client, *actual, client->sock, buffer, 0);
             }
             else if ((strcmp(buffer, ":v") == 0) || (strcmp(buffer, ":vie") == 0))
             {
@@ -515,9 +527,9 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
+                game->status[0] = '\0';
                 strcat(game->status, "Player ");
                 numStr[0] = '\0';
-
                 sprintf(numStr, "%d", (game->currentPlayer == 1) ? 2 : 1);
                 strcat(game->status, numStr);
 
@@ -539,6 +551,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 end = 1;
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent surrendered and you won the game!\n");
+                game->status[0] = '\0';
                 strcat(game->status, "Player ");
                 numStr[0] = '\0';
                 sprintf(numStr, "%d", (game->currentPlayer == 1) ? 2 : 1);
@@ -585,12 +598,11 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
+                game->status[0] = '\0';
                 strcat(game->status, "Player ");
                 numStr[0] = '\0';
-
                 sprintf(numStr, "%d", game->currentPlayer);
                 strcat(game->status, numStr);
-
                 strcat(game->status, " name : ");
                 strcat(game->status, anotherPlayer->name);
                 strcat(game->status, " won.\n");
@@ -811,6 +823,32 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
         sprintf(numStr, "%d", clients[i].score);
         strcat(list_buffer, numStr);
         strcat(list_buffer, "\n");
+        // printf("Client %d: %s\n", i, clients[i].name);
+    }
+
+    if (sender_sock != -1)
+    {
+        // Send only to the requesting client
+        write_client(client.sock, list_buffer);
+    }
+}
+
+static void
+send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server)
+{
+    char list_buffer[1024]; // Assuming 1024 is sufficient
+    char numStr[1024];
+    strcpy(list_buffer, "Games:\n");
+
+    for (int i = 0; i < game_index[0]; i++)
+    {
+        numStr[0] = '\0';
+        strcat(list_buffer, " Numero : ");
+        sprintf(numStr, "%d", i);
+        strcat(list_buffer, numStr);
+        strcat(list_buffer, " ");
+        strcat(list_buffer, " Status : ");
+        strcat(list_buffer, games[i].status);
         // printf("Client %d: %s\n", i, clients[i].name);
     }
 
