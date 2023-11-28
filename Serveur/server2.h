@@ -60,7 +60,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
 
 static void handle_client_input(Client *clients, Client *client, int actual, int max);
 
-static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame *game, int game_index[]);
+static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame games[], AwaleGame *game, int game_index[]);
 
 
 

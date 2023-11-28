@@ -9,7 +9,8 @@ typedef enum {
     IDLE,
     CHALLENGE,
     CHOICE,
-    BUSY
+    PLAYER1,
+    PLAYER2
 } ClientState;
 
 struct Client {
@@ -18,6 +19,7 @@ struct Client {
     ClientState state;
     Client *opponent;
     int score;
+    int currentGame;
 };
 
 typedef struct {
