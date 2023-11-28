@@ -481,7 +481,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     current_game->player1->currentGame = game_index[0];
                     current_game->player2->currentGame = game_index[0];
                     current_game->player1->state = PLAYER1;
-                    current_game->player2->opponent->state = PLAYER2;
+                    current_game->player2->state = PLAYER2;
                     game_play(current_game);
 
                     game_index[0]++;
@@ -569,7 +569,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else
             {
-                write_client(client->sock, "Invalid input.\n");
+                end = 1;
+                write_client(client->opponent->sock, buffer);
             }
 
             if (check && is_valid_move(game->board, game->currentPlayer, game->position))
@@ -613,6 +614,10 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
+            } 
+            else
+            {
+                write_client(client->opponent->sock, buffer);
             }
         }
         break;
