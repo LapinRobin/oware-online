@@ -9,7 +9,7 @@
 void display_board(AwaleGame *game, int board[], int score[])
 {
     char buffer[BUF_SIZE];
-    char numStr[2];
+    char numStr[3];
     buffer[0] = '\0';
     strcat(buffer, "\nGame Board:\n");
     strcat(buffer, "Player 1 (top): ");
@@ -271,7 +271,9 @@ void game_play(AwaleGame *game)
         numStr[0] = '\0';
         sprintf(numStr, "%d", game->currentPlayer);
         strcat(buffer, numStr);
-        strcat(buffer, ", enter the position of the move, or enter s to surrender this game: ");
+        strcat(buffer, ", enter the position of the move\n");
+        strcat(buffer, "Enter s to surrender this game\n");
+        strcat(buffer, "Other messages will be sent to your opponent\n");
         write_client(player->sock, buffer);
     }
 }
@@ -898,7 +900,7 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
         // Opponent found
         char challenge_buffer[1024]; // Assuming 1024 is sufficient
         strcpy(challenge_buffer, "Opponent found\n");
-        strcpy(challenge_buffer, "Your opponent is thinking about your invitation.\n");
+        strcpy(challenge_buffer, "Your opponent is considering your invitation.\n");
         write_client(client->sock, challenge_buffer);
 
         char challengee_response_buffer[1024]; // Assuming 1024 is sufficient
