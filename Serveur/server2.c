@@ -1170,19 +1170,23 @@ static void
 challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
                               int from_server)
 {
-    char list_buffer[1024]; // Assuming 1024 is sufficient
+    char list_buffer[2048];
+    char line_buffer[128]; // Buffer for individual lines
 
-    strcpy(list_buffer, "Available clients:\n");
-
+    list_buffer[0] = '\0';
+    strcat(list_buffer, "┌──────────────────────────────┐\n");
+    strcat(list_buffer, "│  List of available clients:  │\n");
+    strcat(list_buffer, "├──────────────────────────────┤\n");
     for (int i = 0; i < actual; i++)
     {
         if (clients[i].sock == sender_sock || clients[i].state != IDLE)
         {
             continue;
         }
-        strcat(list_buffer, clients[i].name);
-        strcat(list_buffer, "\n");
+        snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", clients[i].name);
+        strcat(list_buffer, line_buffer);
     }
+    strcat(list_buffer, "└──────────────────────────────┘\n");
 
     if (sender_sock != -1)
     {
