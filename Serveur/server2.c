@@ -460,13 +460,16 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if ((strcmp(buffer, ":help") == 0))
             {
-                write_client(client->sock, "Available commands:\n");
-                write_client(client->sock, "`:ls` or `:list` - list all connected clients\n");
-                write_client(client->sock, "`:lsg` or `:listGames` - list all games\n");
-                write_client(client->sock, "`:rank` - list the leaderboard\n");
-                write_client(client->sock, "`:v` - invite a user for an oware game\n");
-                write_client(client->sock, "`:o` - observe a game\n");
-                write_client(client->sock, "`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
+                write_client(client->sock, "\n");
+                write_client(client->sock, "| Available commands:\n");
+                write_client(client->sock, "\n");
+                write_client(client->sock, "| `:ls` or `:list` - list all connected clients\n");
+                write_client(client->sock, "| `:lsg` or `:listGames` - list all games\n");
+                write_client(client->sock, "| `:rank` - show ranking of all connected clients\n");
+                write_client(client->sock, "| `:v` or `:vie`- invite a user for an oware game\n");
+                write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
+                write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
+                write_client(client->sock, "\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
             {
@@ -493,7 +496,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 send_ranking_to_client(clients, *client, *actual, client->sock, buffer, 0);
             }
-            else if ((strcmp(buffer, ":o") == 0))
+            else if ((strcmp(buffer, ":o") == 0) || (strcmp(buffer, ":observe") == 0))
             {
                 if (game_index[0] > 0)
                 {
