@@ -17,7 +17,6 @@ struct Client {
     char name[BUF_SIZE];
     ClientState state;
     Client *opponent;
-    int id;
     int score;
 };
 

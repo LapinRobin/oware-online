@@ -281,7 +281,7 @@ void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int actual)
             if (c == 0)
             {
                 
-                handle_disconnect_client(clients,*player, player->id, &actual);
+                handle_disconnect_client(clients,*player, (clients-player), &actual);
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
                 strcat(game->status, "Player ");
@@ -400,7 +400,6 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     if (*actual < MAX_CLIENTS)
     {
         clients[*actual] = c;
-        c.id = *actual;
         (*actual)++;
         printf("%s joins the server\n", c.name);
     }
