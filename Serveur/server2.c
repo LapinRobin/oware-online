@@ -109,7 +109,6 @@ void playable_positions(int board[], int player, int positions[])
     positions[index] = -1; // Mark the end of the array
 }
 
-// Play a move
 void play_move(int board[], int score[], int player, int position)
 {
     int index = position;
@@ -338,10 +337,23 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     // Update the maximum file descriptor if necessary
     *max = csock > *max ? csock : *max;
 
+    buffer[26] = '\0'; // Truncate to 26 characters
+    for (int i = 0; buffer[i] != '\0'; i++) {
+        if ((unsigned char)buffer[i] > 127) {
+            // write to client: invalid name (contains non-ASCII characters)
+            char message[50];
+            message[0] = '\0';
+            strcat(message, "Invalid name, contains non-ASCII characters.\n");
+            write_client(csock, message);
+
+            closesocket(csock);
+            return;
+        }
+    }
     // Initialize the new client
     Client c = {csock};
-    strncpy(c.name, buffer, BUF_SIZE - 1);
-    c.name[BUF_SIZE - 1] = '\0'; // Ensure null-termination
+    strncpy(c.name, buffer, 26);
+    c.name[26] = '\0'; // Ensure null-termination
     c.state = IDLE;
     c.score = 0;
     c.currentGame = -1;
@@ -381,7 +393,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0);
             }
-            else if (strcmp(buffer, ":v") == 0)
+            else if ((strcmp(buffer, ":v") == 0) || (strcmp(buffer, ":vie") == 0))
             {
                 printf("Client %s is challenging\n", client->name);
                 client->state = CHALLENGE;
@@ -587,6 +599,61 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
     }
 }
 
+static void handle_server_input(Client *clients, int actual, int sock, char *buffer)
+{
+    if (strcmp(buffer, ":help\n") == 0)
+    {
+        printf("Available commands:\n");
+        printf("`:ls` or `:list` - list all connected clients\n");
+
+        printf("`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
+    }
+    else if (strcmp(buffer, ":exit\n") == 0)
+    {
+        clear_clients(clients, actual);
+        end_connection(sock);
+        exit(0);
+    }
+    else if (strcmp(buffer, ":ls\n") == 0 || strcmp(buffer, ":list\n") == 0)
+    {
+        if (actual == 0)
+        {
+            printf("No client connected\n");
+            return;
+        }
+
+        int width = 30; // Width of the frame
+        char line[width * 3 + 1]; // +1 for the null terminator
+
+        // Create a horizontal line with '─'
+        memset(line, 0xE2, width * 3); // 0xE2 is the first byte of '─' in UTF-8
+        for (int i = 0; i < width * 3; i += 3) {
+            line[i + 1] = 0x94;
+            line[i + 2] = 0x80;
+        }
+        line[width * 3] = '\0'; // Null-terminate the string
+
+        printf("\u250C%s\u2510\n", line); // Print the top border with corners
+        printf("\u2502  List of connected clients:  \u2502\n");
+
+        printf("\u251C"); // Left border of the separator line
+        for (int i = 0; i < width - 2; i += 3) {
+            printf("%s", "\u2500\u2500\u2500"); // Middle part of the separator line
+        }
+        printf("\u2524\n"); // Right border of the separator line
+
+        for (int i = 0; i < actual; i++) {
+            printf("\u2502  %-27s \u2502\n", clients[i].name);
+            // client name max length: 26
+        }
+        printf("\u2514%s\u2518\n", line); // Print the bottom border with corners
+    }
+    else
+    {
+        printf("Server received unknown command.\n");
+    }
+}
+
 static void app(void)
 {
     SOCKET sock = init_connection();
@@ -627,8 +694,23 @@ static void app(void)
         /* something from standard input : i.e keyboard */
         if (FD_ISSET(STDIN_FILENO, &rdfs))
         {
-            /* stop process when type on keyboard */
-            break;
+            char buffer[1024]; // Buffer for input
+            ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
+            if (bytesRead > 1)
+            {
+                buffer[bytesRead] = '\0';
+                handle_server_input(clients, actual, sock, buffer);
+            }
+            else if (bytesRead == 0)
+            {
+                // EOF
+                break;
+            }
+            else
+            {
+                perror("read");
+                exit(EXIT_FAILURE);
+            }
         }
 
         if (FD_ISSET(sock, &rdfs))
@@ -818,6 +900,12 @@ static int init_connection(void)
     {
         perror("socket()");
         exit(errno);
+    }
+
+    int yes = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
     }
 
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
