@@ -372,7 +372,8 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
         clients[*actual] = c;
         (*actual)++;
         printf("%s joins the server\n", c.name);
-        write_client(c.sock, "Welcome to oware game server! Enter :help to get help.");
+        write_client(c.sock, "Welcome to oware game server\n");
+        write_client(c.sock, "Enter `:help` to get help.");
     }
     else
     {
@@ -420,6 +421,10 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 printf("Client %s is challenging\n", client->name);
                 client->state = CHALLENGE;
                 challenge_another_client_init(clients, client, *actual, client->sock, buffer, 0);
+            }
+            else if ((strcmp(buffer, ":rank") == 0))
+            {
+                send_ranking_to_client(clients, *client, *actual, client->sock, buffer, 0);
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -632,10 +637,34 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
 {
     if (strcmp(buffer, ":help\n") == 0)
     {
-        printf("Available commands:\n");
-        printf("`:ls` or `:list` - list all connected clients\n");
-        printf("`:v` - invite a client to play an oware game\n");
-        printf("`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
+        int width = 50; // Width of the frame
+
+        // Top border
+        for (int i = 0; i < width; i++) {
+            printf("=");
+        }
+        printf("\n");
+
+        // Title
+        printf("| Available commands:\n");
+
+        // Separator
+        for (int i = 0; i < width; i++) {
+            printf("-");
+        }
+        printf("\n");
+
+        // Commands
+        printf("| `:ls` or `:list` - list all connected clients\n");
+        printf("| `:rank` - show ranking of all connected clients\n");
+        printf("| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
+
+        // Bottom border
+        for (int i = 0; i < width; i++) {
+            printf("=");
+        }
+        printf("\n");
+
     }
     else if (strcmp(buffer, ":exit\n") == 0)
     {
@@ -679,6 +708,37 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
             // client name max length: 26
         }
         printf("\u2514%s\u2518\n", line); // Print the bottom border with corners
+    }
+    else if (strcmp(buffer, ":rank\n") == 0)
+    {
+        if (actual == 0)
+        {
+            printf("No client connected\n");
+            return;
+        }
+        char ranking_buffer[2048];
+        snprintf(ranking_buffer, sizeof(ranking_buffer), "Ranking:\n");
+
+        // Header with separators
+        strncat(ranking_buffer, "┌──────┬────────────────────┬───────┐\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+        strncat(ranking_buffer, "│ Rank │        Name        │ Score │\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+
+        int current_rank = 0;
+        int last_score = -1;
+        for (int i = 0; i < actual; i++) {
+            if (clients[i].score != last_score) {
+                current_rank = i + 1;
+                last_score = clients[i].score;
+            }
+
+            char line[256];
+            strncat(ranking_buffer, "├──────┼────────────────────┼───────┤\n",
+                    sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+            snprintf(line, sizeof(line), "│ %-4d │ %-18s │ %-5d │\n", current_rank, clients[i].name, clients[i].score);
+            strncat(ranking_buffer, line, sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+        }
+        strncat(ranking_buffer, "└──────┴────────────────────┴───────┘\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+        printf("%s", ranking_buffer);
     }
     else
     {
@@ -764,6 +824,53 @@ static void app(void)
     end_connection(sock);
 }
 
+static void send_ranking_to_client(Client *clients, Client client, int actual, int sender_sock, const char *buffer,
+                                   int from_server)
+{
+    for (int i = 0; i < actual; i++)
+    {
+        for (int j = i + 1; j < actual; j++)
+        {
+            if (clients[i].score < clients[j].score)
+            {
+                Client temp = clients[i];
+                clients[i] = clients[j];
+                clients[j] = temp;
+            }
+        }
+    }
+
+    char ranking_buffer[2048]; // Assuming 2048 is sufficient
+    snprintf(ranking_buffer, sizeof(ranking_buffer), "Ranking:\n");
+
+// Header with separators
+    strncat(ranking_buffer, "┌──────┬────────────────────┬───────┐\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+    strncat(ranking_buffer, "│ Rank │        Name        │ Score │\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+
+
+    int current_rank = 0;
+    int last_score = -1;
+    for (int i = 0; i < actual; i++) {
+        if (clients[i].score != last_score) { // New rank for different score
+            current_rank = i + 1;
+            last_score = clients[i].score;
+        }
+
+        char line[256];
+        strncat(ranking_buffer, "├──────┼────────────────────┼───────┤\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+        snprintf(line, sizeof(line), "│ %-4d │ %-18s │ %-5d │\n", current_rank, clients[i].name, clients[i].score);
+        strncat(ranking_buffer, line, sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+    }
+
+    strncat(ranking_buffer, "└──────┴────────────────────┴───────┘\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
+
+
+    // Send the ranking to the client
+    if (sender_sock != -1) {
+        write_client(sender_sock, ranking_buffer);
+    }
+}
+
 static void clear_clients(Client *clients, int actual)
 {
     for (int i = 0; i < actual; i++)
@@ -816,25 +923,31 @@ send_message_to_all_clients(Client *clients, Client sender, int actual, const ch
 static void
 send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server)
 {
-    char list_buffer[1024]; // Assuming 1024 is sufficient
-    char numStr[1024];
-    strcpy(list_buffer, "Connected clients:\n");
+    char list_buffer[2048]; // Increase buffer size if necessary
+    char line_buffer[128];  // Buffer for individual lines
 
-    for (int i = 0; i < actual; i++)
-    {
-        numStr[0] = '\0';
-        strcat(list_buffer, clients[i].name);
-        strcat(list_buffer, " score : ");
-        sprintf(numStr, "%d", clients[i].score);
-        strcat(list_buffer, numStr);
-        strcat(list_buffer, "\n");
-        // printf("Client %d: %s\n", i, clients[i].name);
+    // Check if any clients are connected
+    if (actual == 0) {
+        strcpy(list_buffer, "No clients connected.\n");
+    } else {
+        // Start of the framed list
+        strcpy(list_buffer, "┌──────────────────────────────┐\n");
+        strcat(list_buffer, "│  List of connected clients:  │\n");
+        strcat(list_buffer, "├──────────────────────────────┤\n");
+
+        // Add each client to the list
+        for (int i = 0; i < actual; i++) {
+            snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", clients[i].name);
+            strcat(list_buffer, line_buffer);
+        }
+
+        // End of the framed list
+        strcat(list_buffer, "└──────────────────────────────┘\n");
     }
 
-    if (sender_sock != -1)
-    {
-        // Send only to the requesting client
-        write_client(client.sock, list_buffer);
+    // Send the list to the requesting client
+    if (sender_sock != -1) {
+        write_client(sender_sock, list_buffer);
     }
 }
 
@@ -870,7 +983,7 @@ challenge_another_client_init(Client *clients, Client *client, int actual, int s
 {
     char list_buffer[1024]; // Assuming 1024 is sufficient
 
-    strcpy(list_buffer, "Connected clients:\n");
+    strcpy(list_buffer, "Available clients:\n");
 
     for (int i = 0; i < actual; i++)
     {
@@ -941,7 +1054,7 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
         // Opponent found
         char challenge_buffer[1024]; // Assuming 1024 is sufficient
         strcpy(challenge_buffer, "Opponent found\n");
-        strcpy(challenge_buffer, "Your opponent is thinking about your invitation.\n");
+        strcpy(challenge_buffer, "Your opponent is considering your invitation.\n");
         write_client(client->sock, challenge_buffer);
 
         char challengee_response_buffer[1024]; // Assuming 1024 is sufficient
