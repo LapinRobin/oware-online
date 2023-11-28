@@ -280,7 +280,6 @@ void init_game(AwaleGame *game, fd_set *rdfs, Client *clients, int* actual)
             c = read_client(player->sock, buffer);
             if (c == 0)
             {
-                printf("%d/n", (player-clients));
                 handle_disconnect_client(clients,*player, (player-clients), actual);
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
