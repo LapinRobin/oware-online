@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
 #include <errno.h>
 #include <string.h>
 
 #include "server2.h"
 #include "client2.h"
 
-void display_board(AwaleGame *game, int board[], int score[])
+void display_board(AwaleGame *game, int board[], int score[], Client *client)
 {
     char buffer[BUF_SIZE];
     char numStr[3];
@@ -43,8 +45,7 @@ void display_board(AwaleGame *game, int board[], int score[])
     strcat(buffer, numStr);
     strcat(buffer, " ");
 
-    write_client(game->player1->sock, buffer);
-    write_client(game->player2->sock, buffer);
+    write_client(client->sock, buffer);
 }
 
 void distribute_pieces(int board[])
@@ -147,7 +148,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         strcat(status, "Player 1 ");
         strcat(game->status, " name : ");
         strcat(game->status, game->player1->name);
-        strcat(game->status, " won.\n");
+        strcat(game->status, " won.");
         return 1;
     }
     if (score[1] > NB_SEEDS * NB_HOUSES_PER)
@@ -157,7 +158,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         strcat(status, "Player 2");
         strcat(game->status, " name : ");
         strcat(game->status, game->player2->name);
-        strcat(game->status, " won.\n");
+        strcat(game->status, " won.");
         return 1;
     }
 
@@ -175,7 +176,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
             strcat(status, "Player 1");
             strcat(game->status, " name : ");
             strcat(game->status, game->player1->name);
-            strcat(game->status, " won.\n");
+            strcat(game->status, " won.");
         }
         else if (score[0] < score[1])
         {
@@ -184,7 +185,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
             strcat(status, "Player 2");
             strcat(game->status, " name : ");
             strcat(game->status, game->player2->name);
-            strcat(game->status, " won.\n");
+            strcat(game->status, " won.");
         }
         else
         {
@@ -232,6 +233,7 @@ void init_game(AwaleGame *game)
     game->score[0] = 0;
     game->score[1] = 0;
     game->currentPlayer = 1;
+    game->number_observer = 0;
     strcat(game->status, "In game");
     distribute_pieces(game->board);
 }
@@ -239,7 +241,12 @@ void init_game(AwaleGame *game)
 void game_play(AwaleGame *game)
 {
     Client *player = (game->currentPlayer == 1) ? game->player1 : game->player2;
-    display_board(game, game->board, game->score);
+    display_board(game, game->board, game->score, game->player1);
+    display_board(game, game->board, game->score, game->player2);
+    for (int i = 0; i < game->number_observer; i++)
+    {
+        display_board(game, game->board, game->score, game->observer[i]);
+    }
     int possibleCases[NB_HOUSES_TOTAL + 1];
     playable_positions(game->board, game->currentPlayer, possibleCases);
     char buffer[BUF_SIZE];
@@ -289,7 +296,13 @@ void game_over(AwaleGame *game)
 {
     write_client(game->player1->sock, "\nGame over. Final score:\n");
     write_client(game->player2->sock, "\nGame over. Final score:\n");
-    display_board(game, game->board, game->score);
+    display_board(game, game->board, game->score, game->player1);
+    display_board(game, game->board, game->score, game->player2);
+    for (int i = 0; i < game->number_observer; i++)
+    {
+        write_client(game->observer[i]->sock, "\nGame over. Final score:\n");
+        display_board(game, game->board, game->score, game->observer[i]);
+    }
     char buffer[BUF_SIZE];
     buffer[0] = '\0';
     strcat(buffer, "\nGame status : ");
@@ -297,10 +310,48 @@ void game_over(AwaleGame *game)
     strcat(buffer, "\n");
     write_client(game->player1->sock, buffer);
     write_client(game->player2->sock, buffer);
+    for (int i = 0; i < game->number_observer; i++)
+    {
+        write_client(game->observer[i]->sock, buffer);
+    }
     game->player1->state = IDLE;
     game->player2->state = IDLE;
     game->player1->opponent = NULL;
     game->player2->opponent = NULL;
+    game->player1->currentGame = -1;
+    game->player2->currentGame = -1;
+}
+
+void add_observer(AwaleGame *game, Client *observer_client)
+{
+    if (game->number_observer < MAX_CLIENTS)
+    {
+        game->observer[game->number_observer] = observer_client;
+        game->number_observer++;
+    }
+}
+
+void remove_observer(AwaleGame *game, Client *observer_client)
+{
+    int i, found = 0;
+
+    for (i = 0; i < game->number_observer; i++)
+    {
+        if (game->observer[i] == observer_client)
+        {
+            found = 1;
+            break;
+        }
+    }
+
+    if (found)
+    {
+        for (int j = i; j < game->number_observer - 1; j++)
+        {
+            game->observer[j] = game->observer[j + 1];
+        }
+        game->number_observer--;
+    }
 }
 
 static void init(void)
@@ -368,6 +419,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     c.state = IDLE;
     c.score = 0;
     c.currentGame = -1;
+    c.observeGame = -1;
     // Add the new client to the clients array
     if (*actual < MAX_CLIENTS)
     {
@@ -391,8 +443,11 @@ static void handle_client_input(Client *clients, Client *client, int actual, int
 static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame games[], AwaleGame *current_game, int game_index[])
 {
     int c;
+    int randomValue;
     AwaleGame *game;
     buffer[0] = '\0';
+    char message[BUF_SIZE];
+    message[0] = '\0';
     switch (client->state)
     {
     case IDLE:
@@ -408,6 +463,9 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "Available commands:\n");
                 write_client(client->sock, "`:ls` or `:list` - list all connected clients\n");
                 write_client(client->sock, "`:lsg` or `:listGames` - list all games\n");
+                write_client(client->sock, "`:rank` - list the leaderboard\n");
+                write_client(client->sock, "`:v` - invite a user for an oware game\n");
+                write_client(client->sock, "`:o` - observe a game\n");
                 write_client(client->sock, "`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
@@ -420,13 +478,33 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if ((strcmp(buffer, ":v") == 0) || (strcmp(buffer, ":vie") == 0))
             {
-                printf("Client %s is challenging\n", client->name);
-                client->state = CHALLENGE;
-                challenge_another_client_init(clients, client, *actual, client->sock, buffer, 0);
+                if (*actual > 1)
+                {
+                    printf("Client %s is challenging\n", client->name);
+                    client->state = CHALLENGE;
+                    challenge_another_client_init(clients, client, *actual, client->sock, buffer, 0);
+                }
+                else
+                {
+                    write_client(client->sock, "No available clients.\n");
+                }
             }
             else if ((strcmp(buffer, ":rank") == 0))
             {
                 send_ranking_to_client(clients, *client, *actual, client->sock, buffer, 0);
+            }
+            else if ((strcmp(buffer, ":o") == 0))
+            {
+                if (game_index[0] > 0)
+                {
+                    client->state = INITSTANDBY;
+                    send_list_of_games(games, game_index, *client, *actual, client->sock, buffer, 0);
+                    write_client(client->sock, "Enter the game number, or ':exit' to cancel spectating.\n");
+                }
+                else
+                {
+                    write_client(client->sock, "No available games.\n");
+                }
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -446,6 +524,11 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             if (c == 0)
             {
                 handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if (strcmp(buffer, ":exit") == 0)
+            {
+                client->state = IDLE;
+                write_client(client->sock, "You canceled the invitation.\n");
             }
             else
             {
@@ -468,7 +551,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else
             {
-                char message[BUF_SIZE];
                 message[0] = '\0';
                 if (strcmp(buffer, "yes") == 0)
                 {
@@ -478,10 +560,20 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
 
                     write_client(client->sock, message);
                     write_client(client->opponent->sock, message);
-
+                    srand(time(NULL));
+                    randomValue = rand() % 2;
+                    if (randomValue == 0)
+                    {
+                        current_game->player1 = client;
+                        current_game->player2 = client->opponent;
+                    }
+                    else
+                    {
+                        current_game->player2 = client;
+                        current_game->player1 = client->opponent;
+                    }
                     // start game
-                    current_game->player1 = client;
-                    current_game->player2 = client->opponent;
+
                     init_game(current_game);
                     write_client(current_game->player1->sock, "You are player1, you move first.\n");
                     write_client(current_game->player2->sock, "You are player2, you move after player1 moved.\n");
@@ -542,11 +634,12 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
 
                 strcat(game->status, " name : ");
                 strcat(game->status, anotherPlayer->name);
-                strcat(game->status, " won.\n");
+                strcat(game->status, " won.");
                 end = 1;
 
                 anotherPlayer->opponent = NULL;
                 anotherPlayer->state = IDLE;
+                anotherPlayer->currentGame = -1;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
@@ -566,7 +659,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, " name : ");
                 strcat(game->status, anotherPlayer->name);
 
-                strcat(game->status, " won.\n");
+                strcat(game->status, " won.");
                 game_over(game);
             }
             else if (is_number(buffer))
@@ -576,8 +669,13 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else
             {
+                message[0] = '\0';
+                strcat(message, "Your opponent ");
+                strcat(message, client->name);
+                strcat(message, " : ");
+                strcat(message, buffer);
                 end = 1;
-                write_client(client->opponent->sock, buffer);
+                write_client(client->opponent->sock, message);
             }
 
             if (check && is_valid_move(game->board, game->currentPlayer, game->position))
@@ -613,22 +711,93 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, numStr);
                 strcat(game->status, " name : ");
                 strcat(game->status, anotherPlayer->name);
-                strcat(game->status, " won.\n");
+                strcat(game->status, " won.");
                 anotherPlayer->opponent = NULL;
                 anotherPlayer->state = IDLE;
+                anotherPlayer->currentGame = -1;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
-            } 
+            }
             else
             {
-                write_client(client->opponent->sock, buffer);
+                message[0] = '\0';
+                strcat(message, "Your opponent ");
+                strcat(message, client->name);
+                strcat(message, " : ");
+                strcat(message, buffer);
+                write_client(client->opponent->sock, message);
             }
         }
         break;
+    case INITSTANDBY:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else
+            {
+                if (is_number(buffer))
+                {
+                    int number = atoi(buffer);
+                    if (number < 0 || number >= game_index[0])
+                    {
+                        write_client(client->sock, "Invalid number, please enter a valid game number.\n");
+                    }
+                    else
+                    {
+                        client->state = STANDBY;
+                        client->observeGame = number;
+                        add_observer((games + number), client);
+                        game = (games + number);
 
+                        write_client(client->sock, "You are now in spectator mode. Enter ':exit' to quit the mode.\n");
+                        display_board(game, game->board, game->score, client);
+                        if ((strcmp(game->status, "In game")))
+                        {
+                            write_client(client->sock, "\nThe game is over. Game status : ");
+                            write_client(client->sock, game->status);
+                            write_client(client->sock, "\n");
+                        }
+                    }
+                }
+                else if ((strcmp(buffer, ":exit") == 0))
+                {
+                    write_client(client->sock, "Spectate request cancelled.\n");
+                    client->state = IDLE;
+                }
+                else
+                {
+                    write_client(client->sock, "Invalid input, please enter a number.\n");
+                }
+            }
+        }
+        break;
+    case STANDBY:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            game = (games + client->observeGame);
+
+            if (c == 0)
+            {
+                remove_observer(game, client);
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+                remove_observer(game, client);
+                client->state = IDLE;
+                client->observeGame = -1;
+                write_client(client->sock, "You are no longer watching this game.\n");
+            }
+        }
+        break;
     default:
         fprintf(stderr, "Unknown state for client %s\n", client->name);
         break;
@@ -642,7 +811,8 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         int width = 50; // Width of the frame
 
         // Top border
-        for (int i = 0; i < width; i++) {
+        for (int i = 0; i < width; i++)
+        {
             printf("=");
         }
         printf("\n");
@@ -651,7 +821,8 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         printf("| Available commands:\n");
 
         // Separator
-        for (int i = 0; i < width; i++) {
+        for (int i = 0; i < width; i++)
+        {
             printf("-");
         }
         printf("\n");
@@ -662,11 +833,11 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         printf("| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
 
         // Bottom border
-        for (int i = 0; i < width; i++) {
+        for (int i = 0; i < width; i++)
+        {
             printf("=");
         }
         printf("\n");
-
     }
     else if (strcmp(buffer, ":exit\n") == 0)
     {
@@ -727,8 +898,10 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
 
         int current_rank = 0;
         int last_score = -1;
-        for (int i = 0; i < actual; i++) {
-            if (clients[i].score != last_score) {
+        for (int i = 0; i < actual; i++)
+        {
+            if (clients[i].score != last_score)
+            {
                 current_rank = i + 1;
                 last_score = clients[i].score;
             }
@@ -845,15 +1018,16 @@ static void send_ranking_to_client(Client *clients, Client client, int actual, i
     char ranking_buffer[2048]; // Assuming 2048 is sufficient
     snprintf(ranking_buffer, sizeof(ranking_buffer), "Ranking:\n");
 
-// Header with separators
+    // Header with separators
     strncat(ranking_buffer, "┌──────┬────────────────────┬───────┐\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
     strncat(ranking_buffer, "│ Rank │        Name        │ Score │\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
 
-
     int current_rank = 0;
     int last_score = -1;
-    for (int i = 0; i < actual; i++) {
-        if (clients[i].score != last_score) { // New rank for different score
+    for (int i = 0; i < actual; i++)
+    {
+        if (clients[i].score != last_score)
+        { // New rank for different score
             current_rank = i + 1;
             last_score = clients[i].score;
         }
@@ -866,9 +1040,9 @@ static void send_ranking_to_client(Client *clients, Client client, int actual, i
 
     strncat(ranking_buffer, "└──────┴────────────────────┴───────┘\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
 
-
     // Send the ranking to the client
-    if (sender_sock != -1) {
+    if (sender_sock != -1)
+    {
         write_client(sender_sock, ranking_buffer);
     }
 }
@@ -929,16 +1103,20 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
     char line_buffer[128];  // Buffer for individual lines
 
     // Check if any clients are connected
-    if (actual == 0) {
+    if (actual == 0)
+    {
         strcpy(list_buffer, "No clients connected.\n");
-    } else {
+    }
+    else
+    {
         // Start of the framed list
         strcpy(list_buffer, "┌──────────────────────────────┐\n");
         strcat(list_buffer, "│  List of connected clients:  │\n");
         strcat(list_buffer, "├──────────────────────────────┤\n");
 
         // Add each client to the list
-        for (int i = 0; i < actual; i++) {
+        for (int i = 0; i < actual; i++)
+        {
             snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", clients[i].name);
             strcat(list_buffer, line_buffer);
         }
@@ -948,7 +1126,8 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
     }
 
     // Send the list to the requesting client
-    if (sender_sock != -1) {
+    if (sender_sock != -1)
+    {
         write_client(sender_sock, list_buffer);
     }
 }
@@ -956,20 +1135,28 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
 static void
 send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server)
 {
-    char list_buffer[1024]; // Assuming 1024 is sufficient
+    char list_buffer[2048]; // Assuming 1024 is sufficient
     char numStr[1024];
     strcpy(list_buffer, "Games:\n");
-
-    for (int i = 0; i < game_index[0]; i++)
+    if (game_index[0] == 0)
     {
-        numStr[0] = '\0';
-        strcat(list_buffer, " Numero : ");
-        sprintf(numStr, "%d", i);
-        strcat(list_buffer, numStr);
-        strcat(list_buffer, " ");
-        strcat(list_buffer, " Status : ");
-        strcat(list_buffer, games[i].status);
-        // printf("Client %d: %s\n", i, clients[i].name);
+        strcpy(list_buffer, "No available games.\n");
+    }
+    else
+    {
+        strncat(list_buffer, "┌────────┬────────────────────────────────────────┐\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+        strncat(list_buffer, "│ Number │                 Status                 │\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+
+        for (int i = 0; i < game_index[0]; i++)
+        {
+
+            char line[256];
+            strncat(list_buffer, "├────────┼────────────────────────────────────────┤\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+            snprintf(line, sizeof(line), "│ %-6d │ %-38s │\n", i, games[i].status);
+            strncat(list_buffer, line, sizeof(list_buffer) - strlen(list_buffer) - 1);
+        }
+
+        strncat(list_buffer, "└────────┴────────────────────────────────────────┘\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
     }
 
     if (sender_sock != -1)
@@ -1003,6 +1190,8 @@ challenge_another_client_init(Client *clients, Client *client, int actual, int s
         write_client(client->sock, list_buffer);
         char challenge_buffer[1024];
         strcpy(challenge_buffer, "Who do you want to fight?\n");
+        strcat(challenge_buffer, "Enter ':exit' to cancel this invitation.\n");
+
         write_client(client->sock, challenge_buffer);
     }
     else
@@ -1064,7 +1253,7 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
         strcat(challengee_response_buffer, "Your received an invitation from user: ");
         strcat(challengee_response_buffer, client->name);
         strcat(challengee_response_buffer, " \n");
-        strcat(challengee_response_buffer, "Do you want to accept the fight?\n");
+        strcat(challengee_response_buffer, "Do you want to accept the fight? (yes/no)\n");
 
         write_client(challengee_sock, challengee_response_buffer);
     }

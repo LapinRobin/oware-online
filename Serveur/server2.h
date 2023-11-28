@@ -42,7 +42,7 @@ typedef struct in_addr IN_ADDR;
 
 #include "client2.h"
 
-void display_board(AwaleGame *game, int board[], int score[]);
+void display_board(AwaleGame *game, int board[], int score[], Client* client);
 
 void distribute_pieces(int board[]);
 
@@ -63,6 +63,10 @@ void init_game(AwaleGame *game);
 void game_play(AwaleGame *game);
 
 void game_over(AwaleGame *game);
+
+void add_observer(AwaleGame *game, Client *observer_client);
+
+void remove_observer(AwaleGame *game, Client *observer_client);
 
 static void init(void);
 

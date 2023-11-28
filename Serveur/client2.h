@@ -11,6 +11,7 @@ typedef enum {
     CHOICE,
     PLAYER1,
     PLAYER2,
+    INITSTANDBY,
     STANDBY
 } ClientState;
 
@@ -21,6 +22,7 @@ struct Client {
     Client *opponent;
     int score;
     int currentGame;
+    int observeGame;
 };
 
 typedef struct {
@@ -31,6 +33,8 @@ typedef struct {
     Client *player1;
     Client *player2;
     char status[BUF_SIZE];
+    Client *observer[MAX_CLIENTS];
+    int number_observer;
 } AwaleGame;
 
 #endif /* guard */
