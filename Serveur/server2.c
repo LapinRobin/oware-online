@@ -338,8 +338,10 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     *max = csock > *max ? csock : *max;
 
     buffer[26] = '\0'; // Truncate to 26 characters
-    for (int i = 0; buffer[i] != '\0'; i++) {
-        if ((unsigned char)buffer[i] > 127) {
+    for (int i = 0; buffer[i] != '\0'; i++)
+    {
+        if ((unsigned char)buffer[i] > 127)
+        {
             // write to client: invalid name (contains non-ASCII characters)
             char message[50];
             message[0] = '\0';
@@ -363,6 +365,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
         clients[*actual] = c;
         (*actual)++;
         printf("%s joins the server\n", c.name);
+        write_client(c.sock, "Welcome to oware game server! Enter :help to get help.");
     }
     else
     {
@@ -388,6 +391,12 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             if (c == 0)
             {
                 handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":help") == 0))
+            {
+                write_client(client->sock, "Available commands:\n");
+                write_client(client->sock, "`:ls` or `:list` - list all connected clients\n");
+                write_client(client->sock, "`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
             {
@@ -431,6 +440,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
+                write_client(client->opponent->sock, "Your opponent has disconnected!");
+                client->opponent->state = IDLE;
                 client->opponent->opponent = NULL;
                 client->opponent = NULL;
                 handle_disconnect_client(clients, *client, i, actual);
@@ -605,7 +616,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
     {
         printf("Available commands:\n");
         printf("`:ls` or `:list` - list all connected clients\n");
-
+        printf("`:v` - invite a client to play an oware game\n");
         printf("`:exit`, `CTRL-C` or `CTRL-D` - shut down the server\n");
     }
     else if (strcmp(buffer, ":exit\n") == 0)
@@ -622,12 +633,13 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
             return;
         }
 
-        int width = 30; // Width of the frame
+        int width = 30;           // Width of the frame
         char line[width * 3 + 1]; // +1 for the null terminator
 
         // Create a horizontal line with '─'
         memset(line, 0xE2, width * 3); // 0xE2 is the first byte of '─' in UTF-8
-        for (int i = 0; i < width * 3; i += 3) {
+        for (int i = 0; i < width * 3; i += 3)
+        {
             line[i + 1] = 0x94;
             line[i + 2] = 0x80;
         }
@@ -637,12 +649,14 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         printf("\u2502  List of connected clients:  \u2502\n");
 
         printf("\u251C"); // Left border of the separator line
-        for (int i = 0; i < width - 2; i += 3) {
+        for (int i = 0; i < width - 2; i += 3)
+        {
             printf("%s", "\u2500\u2500\u2500"); // Middle part of the separator line
         }
         printf("\u2524\n"); // Right border of the separator line
 
-        for (int i = 0; i < actual; i++) {
+        for (int i = 0; i < actual; i++)
+        {
             printf("\u2502  %-27s \u2502\n", clients[i].name);
             // client name max length: 26
         }
@@ -883,10 +897,16 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
         // Opponent found
         char challenge_buffer[1024]; // Assuming 1024 is sufficient
         strcpy(challenge_buffer, "Opponent found\n");
+        strcpy(challenge_buffer, "Your opponent is thinking about your invitation.\n");
         write_client(client->sock, challenge_buffer);
 
         char challengee_response_buffer[1024]; // Assuming 1024 is sufficient
-        strcpy(challengee_response_buffer, "Do you want to accept the fight?\n");
+        challengee_response_buffer[0] = '\0';
+        strcat(challengee_response_buffer, "Your received an invitation from user: ");
+        strcat(challengee_response_buffer, client->name);
+        strcat(challengee_response_buffer, " \n");
+        strcat(challengee_response_buffer, "Do you want to accept the fight?\n");
+
         write_client(challengee_sock, challengee_response_buffer);
     }
 }
@@ -903,7 +923,8 @@ static int init_connection(void)
     }
 
     int yes = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+    {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
