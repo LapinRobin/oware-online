@@ -10,7 +10,8 @@ typedef enum {
     CHALLENGE,
     CHOICE,
     PLAYER1,
-    PLAYER2
+    PLAYER2,
+    STANDBY
 } ClientState;
 
 struct Client {
