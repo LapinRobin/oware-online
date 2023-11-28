@@ -42,6 +42,22 @@ typedef struct in_addr IN_ADDR;
 
 #include "client2.h"
 
+void display_board(AwaleGame *game, int board[], int score[]);
+
+void distribute_pieces(int board[]);
+
+int is_valid_move(int board[], int player, int position);
+
+void playable_positions(int board[], int player, int positions[]);
+
+void play_move(int board[], int score[], int player, int position);
+
+int is_game_over(AwaleGame *game, char status[], int board[], int score[]);
+void collect_seeds(int board[], int score[], int currentPlayer);
+int is_number(char *str);
+void init_game(AwaleGame *game);
+void game_play(AwaleGame *game);
+void game_over(AwaleGame *game);
 static void init(void);
 
 static void end(void);
