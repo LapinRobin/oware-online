@@ -90,6 +90,10 @@ handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, 
 static void
 send_message_to_all_clients(Client *clients, Client client, int actual, const char *buffer, char from_server);
 
+static void send_ranking_to_client(Client *clients, Client client, int actual, int sender_sock, const char *buffer,
+                       int from_server);
+
+
 static void
 send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
 
