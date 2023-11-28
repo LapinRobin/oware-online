@@ -12,7 +12,8 @@ typedef enum {
     PLAYER1,
     PLAYER2,
     INITSTANDBY,
-    STANDBY
+    STANDBY,
+    BIO
 } ClientState;
 
 struct Client {
@@ -23,6 +24,7 @@ struct Client {
     int score;
     int currentGame;
     int observeGame;
+    char bio[BUF_SIZE];
 };
 
 typedef struct {

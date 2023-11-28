@@ -468,6 +468,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:rank` - show ranking of all connected clients\n");
                 write_client(client->sock, "| `:v` or `:vie`- invite a user for an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
+                write_client(client->sock, "| `:bio` - write your bio\n");
                 write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
                 write_client(client->sock, "\n");
             }
@@ -508,6 +509,11 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 {
                     write_client(client->sock, "No available games.\n");
                 }
+            }
+            else if ((strcmp(buffer, ":bio") == 0))
+            {
+                client->state = BIO;
+                write_client(client->sock, "Write your bio here, or enter ':exit' to cancel the modification: \n");
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -798,6 +804,29 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 client->state = IDLE;
                 client->observeGame = -1;
                 write_client(client->sock, "You are no longer watching this game.\n");
+            }
+        }
+        break;
+
+    case BIO:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+                client->state = IDLE;
+                write_client(client->sock, "You canceled modifying your bio.\n");
+            }
+            else
+            {
+                client->bio[0] = '\0';
+                strcat(client->bio, buffer);
+                write_client(client->sock, "You modified your bio.\n");
+                client->state = IDLE;
             }
         }
         break;
@@ -1113,19 +1142,19 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
     else
     {
         // Start of the framed list
-        strcpy(list_buffer, "┌──────────────────────────────┐\n");
-        strcat(list_buffer, "│  List of connected clients:  │\n");
-        strcat(list_buffer, "├──────────────────────────────┤\n");
+        strcpy(list_buffer, "┌───────────────┬───────────────────────────────┐\n");
+        strcat(list_buffer, "│  Client name  │              Bio              │\n");
+        strcat(list_buffer, "├───────────────┴───────────────────────────────┤\n");
 
         // Add each client to the list
         for (int i = 0; i < actual; i++)
         {
-            snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", clients[i].name);
+            snprintf(line_buffer, sizeof(line_buffer), "│ %-13s │ %-29s │\n", clients[i].name, clients[i].bio);
             strcat(list_buffer, line_buffer);
         }
 
         // End of the framed list
-        strcat(list_buffer, "└──────────────────────────────┘\n");
+        strcat(list_buffer, "└───────────────────────────────────────────────┘\n");
     }
 
     // Send the list to the requesting client
