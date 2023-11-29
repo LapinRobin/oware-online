@@ -1637,7 +1637,7 @@ remove_friend_request(Client *clients, Client *client, int actual, int sender_so
 
     for (int i = 0; i < actual; i++)
     {
-        if (strcmp(clients[i].name, buffer) == 0 && clients[i].state == IDLE)
+        if (strcmp(clients[i].name, buffer) == 0)
         {
             if (!is_friend(client, (clients + i)))
             {
