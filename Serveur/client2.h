@@ -14,18 +14,24 @@ typedef enum {
     INITSTANDBY,
     STANDBY,
     BIO,
-    DM
+    DM,
+    ADDFRIEND,
+    FRIEND,
+    REMOVEFRIEND
 } ClientState;
 
 struct Client {
     SOCKET sock;
-    char name[BUF_SIZE];
+    char name[NAME_SIZE+1];
     ClientState state;
     Client *opponent;
     int score;
     int currentGame;
     int observeGame;
     char bio[BUF_SIZE];
+    char friend[MAX_CLIENTS][NAME_SIZE+1];
+    int number_friend;
+    Client *friend_request;
 };
 
 typedef struct {
@@ -38,6 +44,7 @@ typedef struct {
     char status[BUF_SIZE];
     Client *observer[MAX_CLIENTS];
     int number_observer;
+    int privacy_mode;
 } AwaleGame;
 
 #endif /* guard */
