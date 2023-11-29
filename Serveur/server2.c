@@ -452,7 +452,9 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     // Update the maximum file descriptor if necessary
     *max = csock > *max ? csock : *max;
 
+
     buffer[NAME_SIZE] = '\0'; // Truncate to 26 characters
+
     for (int i = 0; buffer[i] != '\0'; i++)
     {
         if ((unsigned char)buffer[i] > 127)
@@ -522,7 +524,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:ls` or `:list` - list all connected clients\n");
                 write_client(client->sock, "| `:lsg` or `:listGames` - list all games\n");
                 write_client(client->sock, "| `:rank` - show ranking of all connected clients\n");
-                write_client(client->sock, "| `:v` or `:vie`- invite a user for an oware game\n");
+                write_client(client->sock, "| `:v` or `:vie`- invite a user to an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
                 write_client(client->sock, "| `:bio` - write your bio\n");
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
@@ -574,6 +576,15 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 client->state = BIO;
                 write_client(client->sock, "Write your bio here, or enter ':exit' to cancel the modification: \n");
             }
+
+            else if ((strcmp(buffer, ":dm") ==0))
+            {
+                client->state = DM;
+                write_client(client->sock, "Write the name of the person you want to send message to,\n"
+                                           "Immediately after a space, write the message.\n"
+                                           "Example: 'Alex Hello'\n"
+                                           "Or enter ':exit' to cancel the message: \n");
+            }
             else if ((strcmp(buffer, ":f") == 0) || (strcmp(buffer, ":friend") == 0))
             {
                 if (*actual > 1)
@@ -609,6 +620,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 {
                     write_client(client->sock, "You have no friends.\n");
                 }
+
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -969,7 +981,63 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
-    case ADDFRIEND:
+
+
+    case DM:
+
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+
+                write_client(client->sock, "You canceled sending direct messages.\n"
+                                           "Back to broadcast mode.\n");
+                client->state = IDLE;
+            }
+            else
+            {
+                // split the buffer into 2 parts separated by space
+                char *username = strtok(buffer, " ");
+                // rest of the buffer is the message
+                char *message = strtok(NULL, "\n");
+                if (message == NULL)
+                {
+                    write_client(client->sock, "Invalid message.\n"
+                                               "Back to broadcast mode.\n");
+                    client->state = IDLE;
+                }
+                int found = 0;
+                for (int j = 0; j < *actual; j++)
+                {
+                    if (strcmp(clients[j].name, username) == 0)
+                    {
+                        found = 1;
+                        write_client(clients[j].sock, "You have a private message from ");
+                        write_client(clients[j].sock, client->name);
+                        write_client(clients[j].sock, " : ");
+                        write_client(clients[j].sock, message);
+                        write_client(clients[j].sock, "\n");
+                        write_client(client->sock, "Your message has been sent.\n"
+                                                   "Back to broadcast mode.\n");
+                        client->state = IDLE;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    write_client(client->sock, "No client with this name.\n");
+                    client->state = IDLE;
+                }
+
+            }
+        }
+        break;
+      case ADDFRIEND:
         if (FD_ISSET(client->sock, rdfs))
         {
             c = read_client(client->sock, buffer);
@@ -1068,10 +1136,13 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
+
     default:
         fprintf(stderr, "Unknown state for client %s\n", client->name);
         break;
     }
+
+
 }
 
 static void handle_server_input(Client *clients, int actual, int sock, char *buffer)

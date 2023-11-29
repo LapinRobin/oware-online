@@ -14,6 +14,7 @@ typedef enum {
     INITSTANDBY,
     STANDBY,
     BIO,
+    DM,
     ADDFRIEND,
     FRIEND,
     REMOVEFRIEND
