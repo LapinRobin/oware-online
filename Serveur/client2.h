@@ -13,7 +13,8 @@ typedef enum {
     PLAYER2,
     INITSTANDBY,
     STANDBY,
-    BIO
+    BIO,
+    DM
 } ClientState;
 
 struct Client {
