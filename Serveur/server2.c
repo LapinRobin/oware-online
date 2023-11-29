@@ -397,7 +397,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     // Update the maximum file descriptor if necessary
     *max = csock > *max ? csock : *max;
 
-    buffer[26] = '\0'; // Truncate to 26 characters
+    buffer[12] = '\0'; // Truncate to 12 characters
     for (int i = 0; buffer[i] != '\0'; i++)
     {
         if ((unsigned char)buffer[i] > 127)
@@ -466,7 +466,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:ls` or `:list` - list all connected clients\n");
                 write_client(client->sock, "| `:lsg` or `:listGames` - list all games\n");
                 write_client(client->sock, "| `:rank` - show ranking of all connected clients\n");
-                write_client(client->sock, "| `:v` or `:vie`- invite a user for an oware game\n");
+                write_client(client->sock, "| `:v` or `:vie`- invite a user to an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
                 write_client(client->sock, "| `:bio` - write your bio\n");
                 write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
