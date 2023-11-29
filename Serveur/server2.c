@@ -234,6 +234,7 @@ void init_game(AwaleGame *game)
     game->score[1] = 0;
     game->currentPlayer = 1;
     game->number_observer = 0;
+    game->privacy_mode = 0;
     strcat(game->status, "In game");
     distribute_pieces(game->board);
 }
@@ -241,6 +242,8 @@ void init_game(AwaleGame *game)
 void game_play(AwaleGame *game)
 {
     Client *player = (game->currentPlayer == 1) ? game->player1 : game->player2;
+    Client *anotherPlayer = (game->currentPlayer == 1) ? game->player2 : game->player1;
+
     display_board(game, game->board, game->score, game->player1);
     display_board(game, game->board, game->score, game->player2);
     for (int i = 0; i < game->number_observer; i++)
@@ -286,9 +289,15 @@ void game_play(AwaleGame *game)
         sprintf(numStr, "%d", game->currentPlayer);
         strcat(buffer, numStr);
         strcat(buffer, ", enter the position of the move\n");
-        strcat(buffer, "Enter s to surrender this game\n");
+        write_client(player->sock, buffer);
+
+        buffer[0] = '\0';
+        strcat(buffer, "Enter ':s' to surrender this game\n");
+        strcat(buffer, "Enter ':p' to open privacy mode\n");
+        strcat(buffer, "Enter ':e' to close privacy mode\n");
         strcat(buffer, "Other messages will be sent to your opponent\n");
         write_client(player->sock, buffer);
+        write_client(anotherPlayer->sock, buffer);
     }
 }
 
@@ -351,6 +360,52 @@ void remove_observer(AwaleGame *game, Client *observer_client)
             game->observer[j] = game->observer[j + 1];
         }
         game->number_observer--;
+    }
+}
+
+int is_friend(Client *client, Client *friend)
+{
+
+    for (int i = 0; i < client->number_friend; i++)
+    {
+        if (strcmp(client->friend[i], friend->name) == 0)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void add_friend(Client *client, Client *friend)
+{
+    printf("Client %s added %s as friend\n", client->name, friend->name);
+    if (client->number_friend < MAX_CLIENTS)
+    {
+        strcpy(client->friend[client->number_friend], friend->name);
+        client->number_friend++;
+    }
+}
+
+void remove_friend(Client *client, Client *friend)
+{
+    int i, found = 0;
+
+    for (i = 0; i < client->number_friend; i++)
+    {
+        if (strcmp(client->friend[i], friend->name) == 0)
+        {
+            found = 1;
+            break;
+        }
+    }
+
+    if (found)
+    {
+        for (int j = i; j < client->number_friend - 1; j++)
+        {
+            strcpy(client->friend[j], client->friend[j + 1]);
+        }
+        client->number_friend--;
     }
 }
 
@@ -420,6 +475,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     c.score = 0;
     c.currentGame = -1;
     c.observeGame = -1;
+    c.number_friend = 0;
     // Add the new client to the clients array
     if (*actual < MAX_CLIENTS)
     {
@@ -469,6 +525,9 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:v` or `:vie`- invite a user for an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
                 write_client(client->sock, "| `:bio` - write your bio\n");
+                write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
+                write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
+                write_client(client->sock, "| `:lf` or `:listFriends` - list all your friends\n");
                 write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
                 write_client(client->sock, "\n");
             }
@@ -514,6 +573,42 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 client->state = BIO;
                 write_client(client->sock, "Write your bio here, or enter ':exit' to cancel the modification: \n");
+            }
+            else if ((strcmp(buffer, ":f") == 0) || (strcmp(buffer, ":friend") == 0))
+            {
+                if (*actual > 1)
+                {
+                    client->state = ADDFRIEND;
+                    add_friend_init(clients, client, *actual, client->sock, buffer, 0);
+                }
+                else
+                {
+                    write_client(client->sock, "No available clients.\n");
+                }
+            }
+            else if ((strcmp(buffer, ":rmf") == 0) || (strcmp(buffer, ":removeFriend") == 0))
+            {
+                if (*actual > 1)
+                {
+                    client->state = REMOVEFRIEND;
+                    send_list_of_available_friends(clients, *client, *actual, client->sock, buffer, 0);
+                    write_client(client->sock, "Enter the friend name, or ':exit' to cancel removing friend.\n");
+                }
+                else
+                {
+                    write_client(client->sock, "No available clients.\n");
+                }
+            }
+            else if ((strcmp(buffer, ":lf") == 0) || (strcmp(buffer, ":listFriends") == 0))
+            {
+                if (client->number_friend > 0)
+                {
+                    send_list_of_friends(clients, *client, *actual, client->sock, buffer, 0);
+                }
+                else
+                {
+                    write_client(client->sock, "You have no friends.\n");
+                }
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -599,6 +694,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     printf("Client %s declined the challenge.\n", client->name);
                     client->state = IDLE;
                     client->opponent->state = IDLE;
+
                     // send message to challenger that challengee declined
                     strcat(message, "You declined the challenge.\n");
 
@@ -608,6 +704,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     strcat(message, "Your opponent declined the challenge.\n");
 
                     write_client(client->opponent->sock, message);
+                    client->opponent->opponent = NULL;
+                    client->opponent = NULL;
                 }
                 else
                 {
@@ -629,7 +727,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
         if (FD_ISSET(client->sock, rdfs))
         {
             int check = 0;
-            int end = 0;
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
@@ -644,7 +741,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, " name : ");
                 strcat(game->status, anotherPlayer->name);
                 strcat(game->status, " won.");
-                end = 1;
 
                 anotherPlayer->opponent = NULL;
                 anotherPlayer->state = IDLE;
@@ -655,9 +751,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
             }
-            else if ((strcmp(buffer, "s") == 0))
+            else if ((strcmp(buffer, ":s") == 0))
             {
-                end = 1;
                 anotherPlayer->score++;
                 write_client(anotherPlayer->sock, "Your opponent surrendered and you won the game!\n");
                 game->status[0] = '\0';
@@ -671,6 +766,18 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, " won.");
                 game_over(game);
             }
+            else if ((strcmp(buffer, ":p") == 0))
+            {
+                game->privacy_mode = 1;
+                write_client(client->sock, "You opened privacy mode.\n");
+                write_client(anotherPlayer->sock, "Your opponent opened privacy mode.\n");
+            }
+            else if ((strcmp(buffer, ":e") == 0))
+            {
+                game->privacy_mode = 0;
+                write_client(client->sock, "You closed privacy mode.\n");
+                write_client(anotherPlayer->sock, "Your opponent closed privacy mode.\n");
+            }
             else if (is_number(buffer))
             {
                 game->position = atoi(buffer);
@@ -683,7 +790,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(message, client->name);
                 strcat(message, " : ");
                 strcat(message, buffer);
-                end = 1;
                 write_client(client->opponent->sock, message);
             }
 
@@ -695,7 +801,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 anotherPlayer->state = PLAYER1;
                 game_play(game);
             }
-            else if (!end)
+            else if (check)
             {
                 write_client(client->sock, "Invalid move. Please choose a valid position.\n");
             }
@@ -730,6 +836,33 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
             }
+            else if ((strcmp(buffer, ":s") == 0))
+            {
+                anotherPlayer->score++;
+                write_client(anotherPlayer->sock, "Your opponent surrendered and you won the game!\n");
+                game->status[0] = '\0';
+                strcat(game->status, "Player ");
+                numStr[0] = '\0';
+                sprintf(numStr, "%d", (game->currentPlayer == 1) ? 2 : 1);
+                strcat(game->status, numStr);
+                strcat(game->status, " name : ");
+                strcat(game->status, anotherPlayer->name);
+
+                strcat(game->status, " won.");
+                game_over(game);
+            }
+            else if ((strcmp(buffer, ":p") == 0))
+            {
+                game->privacy_mode = 1;
+                write_client(client->sock, "You opened privacy mode.\n");
+                write_client(anotherPlayer->sock, "Your opponent opened privacy mode.\n");
+            }
+            else if ((strcmp(buffer, ":e") == 0))
+            {
+                game->privacy_mode = 0;
+                write_client(client->sock, "You closed privacy mode.\n");
+                write_client(anotherPlayer->sock, "Your opponent closed privacy mode.\n");
+            }
             else
             {
                 message[0] = '\0';
@@ -741,6 +874,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
+
     case INITSTANDBY:
         if (FD_ISSET(client->sock, rdfs))
         {
@@ -757,6 +891,10 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                     if (number < 0 || number >= game_index[0])
                     {
                         write_client(client->sock, "Invalid number, please enter a valid game number.\n");
+                    }
+                    else if (games[number].privacy_mode && !is_friend(client, games[number].player1) && !is_friend(client, games[number].player2))
+                    {
+                        write_client(client->sock, "This game is in privacy mode. You are not allowed to spectate this game.\n");
                     }
                     else
                     {
@@ -787,6 +925,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
+
     case STANDBY:
         if (FD_ISSET(client->sock, rdfs))
         {
@@ -827,6 +966,105 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(client->bio, buffer);
                 write_client(client->sock, "You modified your bio.\n");
                 client->state = IDLE;
+            }
+        }
+        break;
+    case ADDFRIEND:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+                client->state = IDLE;
+                write_client(client->sock, "You canceled adding friend.\n");
+            }
+            else
+            {
+                add_friend_request(clients, client, *actual, client->sock, buffer, 0);
+            }
+        }
+        break;
+    case FRIEND:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                write_client(client->friend_request->sock, "Your friend has disconnected!");
+                client->friend_request->state = IDLE;
+                client->friend_request->friend_request = NULL;
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else
+            {
+                message[0] = '\0';
+                if (strcmp(buffer, "yes") == 0)
+                {
+                    printf("Client %s accepted the friend request\n", client->name);
+                    strcat(message, "You have a new friend : ");
+                    strcat(message, client->friend_request->name);
+                    strcat(message, "\n");
+                    write_client(client->sock, message);
+
+                    message[0] = '\0';
+                    strcat(message, "You have a new friend : ");
+                    strcat(message, client->name);
+                    strcat(message, "\n");
+                    write_client(client->friend_request->sock, message);
+                    add_friend(client, client->friend_request);
+                    add_friend(client->friend_request, client);
+                    client->state = IDLE;
+                    client->friend_request->state = IDLE;
+                    client->friend_request->friend_request = NULL;
+                    client->friend_request = NULL;
+                }
+                else if (strcmp(buffer, "no") == 0)
+                {
+                    printf("Client %s declined the friend request.\n", client->name);
+
+                    strcat(message, "You declined the friend request.\n");
+
+                    write_client(client->sock, message);
+
+                    message[0] = '\0';
+                    strcat(message, "Client ");
+                    strcat(message, client->name);
+                    strcat(message, " declined the friend request.\n");
+                    write_client(client->friend_request->sock, message);
+                    client->state = IDLE;
+                    client->friend_request->state = IDLE;
+                    client->friend_request->friend_request = NULL;
+                    client->friend_request = NULL;
+                }
+                else
+                {
+                    strcat(message, "Invalid response. Please resend the answer.\n");
+                    printf("Client %s sent invalid response\n", client->name);
+                    write_client(client->sock, message);
+                }
+            }
+        }
+        break;
+    case REMOVEFRIEND:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+                client->state = IDLE;
+                write_client(client->sock, "You canceled removing friend.\n");
+            }
+            else
+            {
+                remove_friend_request(clients, client, *actual, client->sock, buffer, 0);
             }
         }
         break;
@@ -1089,10 +1327,22 @@ static void clear_clients(Client *clients, int actual)
 
 static void handle_disconnect_client(Client *clients, Client client, int i, int *actual)
 {
+    for (int j = 0; j < client.number_friend; j++)
+    {
+        for (int k = 0; k < *actual; k++)
+        {
+            if (strcmp(clients[k].name, client.friend[j]) == 0)
+            {
+                remove_friend((clients + i), (clients + k));
+                remove_friend((clients + k), (clients + i));
+            }
+        }
+    }
     // char buffer[BUF_SIZE];
     closesocket(clients[i].sock);
     remove_client(clients, i, actual);
     printf("%s disconnected\n", client.name);
+
     // strncpy(buffer, client.name, BUF_SIZE - 1);
     // strncat(buffer, " disconnected !", BUF_SIZE - strlen(buffer) - 1);
     // send_message_to_all_clients(clients, client, actual, buffer, 1);
@@ -1168,7 +1418,6 @@ static void
 send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server)
 {
     char list_buffer[2048]; // Assuming 1024 is sufficient
-    char numStr[1024];
     strcpy(list_buffer, "Games:\n");
     if (game_index[0] == 0)
     {
@@ -1190,6 +1439,60 @@ send_list_of_games(AwaleGame games[], int game_index[], Client client, int actua
 
         strncat(list_buffer, "└────────┴────────────────────────────────────────┘\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
     }
+
+    if (sender_sock != -1)
+    {
+        // Send only to the requesting client
+        write_client(client.sock, list_buffer);
+    }
+}
+
+static void
+send_list_of_friends(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server)
+{
+    char list_buffer[2048];
+    char line_buffer[128]; // Buffer for individual lines
+
+    list_buffer[0] = '\0';
+    strcat(list_buffer, "┌──────────────────────────────┐\n");
+    strcat(list_buffer, "│     List of your friends:    │\n");
+    strcat(list_buffer, "├──────────────────────────────┤\n");
+    for (int i = 0; i < client.number_friend; i++)
+    {
+        snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", client.friend[i]);
+        strcat(list_buffer, line_buffer);
+    }
+    strcat(list_buffer, "└──────────────────────────────┘\n");
+
+    if (sender_sock != -1)
+    {
+        // Send only to the requesting client
+        write_client(client.sock, list_buffer);
+    }
+}
+
+static void
+send_list_of_available_friends(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server)
+{
+    char list_buffer[2048];
+    char line_buffer[128]; // Buffer for individual lines
+
+    list_buffer[0] = '\0';
+    strcat(list_buffer, "┌──────────────────────────────┐\n");
+    strcat(list_buffer, "│  List of available friends:  │\n");
+    strcat(list_buffer, "├──────────────────────────────┤\n");
+    for (int i = 0; i < client.number_friend; i++)
+    {
+        for (int j = 0; j < actual; j++)
+        {
+            if (strcmp(client.friend[i], clients[j].name) == 0)
+            {
+                snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", client.friend[i]);
+                strcat(list_buffer, line_buffer);
+            }
+        }
+    }
+    strcat(list_buffer, "└──────────────────────────────┘\n");
 
     if (sender_sock != -1)
     {
@@ -1233,6 +1536,142 @@ challenge_another_client_init(Client *clients, Client *client, int actual, int s
     else
     {
         return;
+    }
+}
+
+static void
+add_friend_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                int from_server)
+{
+    char list_buffer[2048];
+    char line_buffer[128]; // Buffer for individual lines
+
+    list_buffer[0] = '\0';
+    strcat(list_buffer, "┌──────────────────────────────┐\n");
+    strcat(list_buffer, "│  List of available clients:  │\n");
+    strcat(list_buffer, "├──────────────────────────────┤\n");
+    for (int i = 0; i < actual; i++)
+    {
+        if (clients[i].sock == sender_sock || clients[i].state != IDLE || is_friend(client, (clients + i)))
+        {
+            continue;
+        }
+        snprintf(line_buffer, sizeof(line_buffer), "│  %-27s │\n", clients[i].name);
+        strcat(list_buffer, line_buffer);
+    }
+    strcat(list_buffer, "└──────────────────────────────┘\n");
+
+    if (sender_sock != -1)
+    {
+        write_client(client->sock, list_buffer);
+        write_client(client->sock, "Enter the name of the friend you want to add, or enter ':exit' to cancel the request: \n");
+    }
+    else
+    {
+        return;
+    }
+}
+
+static void
+add_friend_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                   int from_server)
+{
+    int friend_sock = -1;
+
+    if (strcmp(client->name, buffer) == 0)
+    {
+        write_client(client->sock, "You can't add yourself\n");
+        return;
+    }
+
+    for (int i = 0; i < actual; i++)
+    {
+        if (strcmp(clients[i].name, buffer) == 0 && clients[i].state == IDLE)
+        {
+            if (is_friend(client, (clients + i)))
+            {
+                write_client(client->sock, "You can't add a friend twice\n");
+                return;
+            }
+            friend_sock = clients[i].sock;
+            clients[i].state = FRIEND;
+            clients[i].friend_request = client;
+            client->friend_request = (clients + i);
+            break;
+        }
+    }
+
+    if (friend_sock == -1)
+    {
+        // Challengee not found
+        char not_found_buffer[1024]; // Assuming 1024 is sufficient
+        strcpy(not_found_buffer, "Opponent not found\n");
+
+        if (sender_sock != -1)
+        {
+            // Send only to the requesting client
+            write_client(client->sock, not_found_buffer);
+        }
+    }
+    else
+    {
+        char friend_buffer[1024];
+        strcpy(friend_buffer, "Client found\n");
+        strcat(friend_buffer, "Your friend request is being considered.\n");
+        write_client(client->sock, friend_buffer);
+
+        friend_buffer[0] = '\0';
+        strcat(friend_buffer, "Your received a friend request from user: ");
+        strcat(friend_buffer, client->name);
+        strcat(friend_buffer, " \n");
+        strcat(friend_buffer, "Do you want to accept the request? (yes/no)\n");
+        write_client(friend_sock, friend_buffer);
+    }
+}
+
+static void
+remove_friend_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                      int from_server)
+{
+    int friend_sock = -1;
+
+    for (int i = 0; i < actual; i++)
+    {
+        if (strcmp(clients[i].name, buffer) == 0 && clients[i].state == IDLE)
+        {
+            if (!is_friend(client, (clients + i)))
+            {
+                write_client(client->sock, "You can't remove a client that is not in your friend list\n");
+                return;
+            }
+            friend_sock = clients[i].sock;
+            remove_friend(client, (clients + i));
+            remove_friend((clients + i), client);
+            break;
+        }
+    }
+
+    if (friend_sock == -1)
+    {
+        if (sender_sock != -1)
+        {
+            write_client(client->sock, "Client not found\n");
+        }
+    }
+    else
+    {
+        char friend_buffer[1024];
+        strcat(friend_buffer, "You removed your friend ");
+        strcat(friend_buffer, buffer);
+        strcat(friend_buffer, "\n");
+        write_client(client->sock, friend_buffer);
+
+        friend_buffer[0] = '\0';
+        strcat(friend_buffer, "Your friend ");
+        strcat(friend_buffer, client->name);
+        strcat(friend_buffer, " removed you from their friend list.\n");
+        write_client(friend_sock, friend_buffer);
+        client->state = IDLE;
     }
 }
 
@@ -1365,9 +1804,7 @@ static void write_client(SOCKET sock, const char *buffer)
 int main(int argc, char **argv)
 {
     init();
-
     app();
-
     end();
 
     return EXIT_SUCCESS;

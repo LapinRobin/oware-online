@@ -68,6 +68,12 @@ void add_observer(AwaleGame *game, Client *observer_client);
 
 void remove_observer(AwaleGame *game, Client *observer_client);
 
+int is_friend(Client *client, Client *friend);
+
+void add_friend(Client *client, Client *friend);
+
+void remove_friend(Client *client, Client *friend);
+
 static void init(void);
 
 static void end(void);
@@ -97,12 +103,28 @@ send_message_to_all_clients(Client *clients, Client client, int actual, const ch
 static void send_ranking_to_client(Client *clients, Client client, int actual, int sender_sock, const char *buffer,
                        int from_server);
 
-
 static void
 send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
 
 static void
 send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
+send_list_of_friends(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
+send_list_of_available_friends(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
+add_friend_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                int from_server);
+static void
+add_friend_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                                 int from_server);
+
+static void
+remove_friend_request(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,
+                      int from_server);
 
 static void
 challenge_another_client_init(Client *clients, Client *client, int actual, int sender_sock, const char *buffer,

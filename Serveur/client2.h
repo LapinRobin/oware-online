@@ -13,7 +13,10 @@ typedef enum {
     PLAYER2,
     INITSTANDBY,
     STANDBY,
-    BIO
+    BIO,
+    ADDFRIEND,
+    FRIEND,
+    REMOVEFRIEND
 } ClientState;
 
 struct Client {
@@ -25,6 +28,9 @@ struct Client {
     int currentGame;
     int observeGame;
     char bio[BUF_SIZE];
+    char friend[MAX_CLIENTS][10];
+    int number_friend;
+    Client *friend_request;
 };
 
 typedef struct {
@@ -37,6 +43,7 @@ typedef struct {
     char status[BUF_SIZE];
     Client *observer[MAX_CLIENTS];
     int number_observer;
+    int privacy_mode;
 } AwaleGame;
 
 #endif /* guard */
