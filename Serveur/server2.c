@@ -452,7 +452,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     // Update the maximum file descriptor if necessary
     *max = csock > *max ? csock : *max;
 
-    buffer[26] = '\0'; // Truncate to 26 characters
+    buffer[NAME_SIZE] = '\0'; // Truncate to 26 characters
     for (int i = 0; buffer[i] != '\0'; i++)
     {
         if ((unsigned char)buffer[i] > 127)
@@ -469,8 +469,8 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     }
     // Initialize the new client
     Client c = {csock};
-    strncpy(c.name, buffer, 26);
-    c.name[26] = '\0'; // Ensure null-termination
+    strncpy(c.name, buffer, NAME_SIZE);
+    c.name[NAME_SIZE] = '\0'; // Ensure null-termination
     c.state = IDLE;
     c.score = 0;
     c.currentGame = -1;

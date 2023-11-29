@@ -21,14 +21,14 @@ typedef enum {
 
 struct Client {
     SOCKET sock;
-    char name[BUF_SIZE];
+    char name[NAME_SIZE+1];
     ClientState state;
     Client *opponent;
     int score;
     int currentGame;
     int observeGame;
     char bio[BUF_SIZE];
-    char friend[MAX_CLIENTS][10];
+    char friend[MAX_CLIENTS][NAME_SIZE+1];
     int number_friend;
     Client *friend_request;
 };
