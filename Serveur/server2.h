@@ -111,6 +111,9 @@ static void
 send_list_of_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server);
 
 static void
+send_list_of_saved_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server);
+
+static void
 send_list_of_friends(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server);
 
 static void

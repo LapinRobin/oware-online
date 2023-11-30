@@ -323,12 +323,13 @@ void game_over(AwaleGame *game)
     {
         write_client(game->observer[i]->sock, buffer);
     }
-    game->player1->state = IDLE;
-    game->player2->state = IDLE;
+
     game->player1->opponent = NULL;
     game->player2->opponent = NULL;
-    game->player1->currentGame = -1;
-    game->player2->currentGame = -1;
+    write_client(game->player1->sock, "Do you want to save this game in your history? (yes/no)\n");
+    write_client(game->player2->sock, "Do you want to save this game in your history? (yes/no)\n");
+    game->player1->state = HISTORY;
+    game->player2->state = HISTORY;
 }
 
 void add_observer(AwaleGame *game, Client *observer_client)
@@ -467,8 +468,10 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
         }
     }
 
-    for (int i = 0; i < *actual; i++){
-        if (strcmp(clients[i].name, buffer) == 0){
+    for (int i = 0; i < *actual; i++)
+    {
+        if (strcmp(clients[i].name, buffer) == 0)
+        {
             // write to client: invalid name (already exists)
             message[0] = '\0';
             strcat(message, "Username already exists. Please choose another name.\n");
@@ -487,6 +490,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     c.currentGame = -1;
     c.observeGame = -1;
     c.number_friend = 0;
+    c.number_game = 0;
     // Add the new client to the clients array
     if (*actual < MAX_CLIENTS)
     {
@@ -532,6 +536,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "\n");
                 write_client(client->sock, "| `:ls` or `:list` - list all connected clients\n");
                 write_client(client->sock, "| `:lsg` or `:listGames` - list all games\n");
+                write_client(client->sock, "| `:lssg` or `:listSavedGames` - list all saved games\n");
                 write_client(client->sock, "| `:rank` - show ranking of all connected clients\n");
                 write_client(client->sock, "| `:v` or `:vie`- invite a user to an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
@@ -550,6 +555,19 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             else if ((strcmp(buffer, ":lsg") == 0) || (strcmp(buffer, ":listGames") == 0))
             {
                 send_list_of_games(games, game_index, *client, *actual, client->sock, buffer, 0);
+            }
+            else if ((strcmp(buffer, ":lssg") == 0) || (strcmp(buffer, ":listSavedGames") == 0))
+            {
+                if (game_index[0] == 0 || client->number_game == 0)
+                {
+                    write_client(client->sock, "No available games.\n");
+                }
+                else
+                {
+                    send_list_of_saved_games(games, game_index, *client, *actual, client->sock, buffer, 0);
+                    client->state = VIEWGAME;
+                    write_client(client->sock, "Enter the game number to view the game, or ':exit' to cancel viewing.\n");
+                }
             }
             else if ((strcmp(buffer, ":v") == 0) || (strcmp(buffer, ":vie") == 0))
             {
@@ -765,13 +783,13 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, " won.");
 
                 anotherPlayer->opponent = NULL;
-                anotherPlayer->state = IDLE;
-                anotherPlayer->currentGame = -1;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
+                write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
+                anotherPlayer->state = HISTORY;
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
@@ -806,7 +824,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(message, "Your opponent ");
                 strcat(message, client->name);
                 strcat(message, " : ");
-                strcat(message, buffer+4);
+                strcat(message, buffer + 4);
                 write_client(client->opponent->sock, message);
             }
             else if (is_number(buffer))
@@ -854,13 +872,13 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, anotherPlayer->name);
                 strcat(game->status, " won.");
                 anotherPlayer->opponent = NULL;
-                anotherPlayer->state = IDLE;
-                anotherPlayer->currentGame = -1;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
+                write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
+                anotherPlayer->state = HISTORY;
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
@@ -895,7 +913,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(message, "Your opponent ");
                 strcat(message, client->name);
                 strcat(message, " : ");
-                strcat(message, buffer+4);
+                strcat(message, buffer + 4);
                 write_client(client->opponent->sock, message);
             }
             else
@@ -1031,7 +1049,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 int found = 0;
                 for (int j = 0; j < *actual; j++)
                 {
-                    if(strcmp(client->name, username) == 0){
+                    if (strcmp(client->name, username) == 0)
+                    {
                         write_client(client->sock, "You cannot send message to yourself.\n"
                                                    "Back to broadcast mode.\n");
                         client->state = IDLE;
@@ -1158,7 +1177,76 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
-
+    case HISTORY:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, "yes") == 0))
+            {
+                write_client(client->sock, "You saved this game in your history.\n");
+                client->state = IDLE;
+                client->history[client->number_game] = client->currentGame;
+                client->currentGame = -1;
+                client->number_game++;
+            }
+            else if ((strcmp(buffer, "no") == 0))
+            {
+                write_client(client->sock, "You did not save this game in your history.\n");
+                client->state = IDLE;
+                client->currentGame = -1;
+            }
+            else
+            {
+                write_client(client->sock, "Invalid input.\n");
+            }
+        }
+        break;
+    case VIEWGAME:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else if ((strcmp(buffer, ":exit") == 0))
+            {
+                client->state = IDLE;
+                write_client(client->sock, "You canceled viewing game.\n");
+            }
+            else if (is_number(buffer))
+            {
+                int number = atoi(buffer);
+                int found = 0;
+                for (int i = 0; i < client->number_game; i++)
+                {
+                    if (client->history[i] == number)
+                    {
+                        found = 1;
+                        game = (games + number);
+                        display_board(game, game->board, game->score, client);
+                        write_client(client->sock, "Game status : ");
+                        write_client(client->sock, game->status);
+                        write_client(client->sock, "\n");
+                        client->state = IDLE;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    write_client(client->sock, "Invalid number, please enter a valid game number.\n");
+                }
+            }
+            else
+            {
+                write_client(client->sock, "Invalid input, please enter a number.\n");
+            }
+        }
+        break;
     default:
         fprintf(stderr, "Unknown state for client %s\n", client->name);
         break;
@@ -1490,7 +1578,8 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
         // Add each client to the list
         for (int i = 0; i < actual; i++)
         {
-            if(strcmp(clients[i].name, client.name) == 0 && include_self == 0){
+            if (strcmp(clients[i].name, client.name) == 0 && include_self == 0)
+            {
                 continue;
             }
             snprintf(line_buffer, sizeof(line_buffer), "│ %-13s │ %-29s │\n", clients[i].name, clients[i].bio);
@@ -1533,6 +1622,32 @@ send_list_of_games(AwaleGame games[], int game_index[], Client client, int actua
 
         strncat(list_buffer, "└────────┴────────────────────────────────────────┘\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
     }
+
+    if (sender_sock != -1)
+    {
+        // Send only to the requesting client
+        write_client(client.sock, list_buffer);
+    }
+}
+
+static void
+send_list_of_saved_games(AwaleGame games[], int game_index[], Client client, int actual, int sender_sock, const char *buffer, int from_server)
+{
+    char list_buffer[2048]; // Assuming 1024 is sufficient
+    strcpy(list_buffer, "Games:\n");
+
+    strncat(list_buffer, "┌────────┬────────────────────────────────────────┐\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+    strncat(list_buffer, "│ Number │                 Status                 │\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+
+    for (int i = 0; i < client.number_game; i++)
+    {
+        char line[256];
+        strncat(list_buffer, "├────────┼────────────────────────────────────────┤\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+        snprintf(line, sizeof(line), "│ %-6d │ %-38s │\n", client.history[i], games[client.history[i]].status);
+        strncat(list_buffer, line, sizeof(list_buffer) - strlen(list_buffer) - 1);
+    }
+
+    strncat(list_buffer, "└────────┴────────────────────────────────────────┘\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
 
     if (sender_sock != -1)
     {

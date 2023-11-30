@@ -17,7 +17,9 @@ typedef enum {
     DM,
     ADDFRIEND,
     FRIEND,
-    REMOVEFRIEND
+    REMOVEFRIEND,
+    HISTORY,
+    VIEWGAME
 } ClientState;
 
 struct Client {
@@ -32,6 +34,8 @@ struct Client {
     char friend[MAX_CLIENTS][NAME_SIZE+1];
     int number_friend;
     Client *friend_request;
+    int history[MAX_GAMES];
+    int number_game;
 };
 
 typedef struct {
