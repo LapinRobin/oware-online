@@ -1295,7 +1295,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                         write_client(client->sock, "Game status : ");
                         write_client(client->sock, game->status);
                         write_client(client->sock, "\n");
-                        client->state = IDLE;
                         break;
                     }
                 }
