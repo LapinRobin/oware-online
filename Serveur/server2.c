@@ -413,7 +413,6 @@ int is_friend(Client *client, Client *friend)
 
 void add_friend(Client *client, Client *friend)
 {
-    printf("Client %s added %s as friend\n", client->name, friend->name);
     if (client->number_friend < MAX_CLIENTS)
     {
         strcpy(client->friend[client->number_friend], friend->name);
@@ -607,7 +606,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             {
                 if (*actual > 1)
                 {
-                    printf("Client %s is challenging\n", client->name);
                     client->state = CHALLENGE;
                     challenge_another_client_init(clients, client, *actual, client->sock, buffer, 0);
                 }
@@ -732,8 +730,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 message[0] = '\0';
                 if (strcmp(buffer, "yes") == 0)
                 {
-                    printf("Client %s accepted the challenge\n", client->name);
-
                     strcat(message, "Are you ready? Game start!\n");
 
                     write_client(client->sock, message);
@@ -765,7 +761,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 }
                 else if (strcmp(buffer, "no") == 0)
                 {
-                    printf("Client %s declined the challenge.\n", client->name);
                     client->state = IDLE;
                     client->opponent->state = IDLE;
 
@@ -784,7 +779,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 else
                 {
                     strcat(message, "Invalid response. Please resend the answer.\n");
-                    printf("Client %s sent invalid response\n", client->name);
                     write_client(client->sock, message);
                 }
             }
@@ -1150,7 +1144,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 message[0] = '\0';
                 if (strcmp(buffer, "yes") == 0)
                 {
-                    printf("Client %s accepted the friend request\n", client->name);
                     strcat(message, "You have a new friend : ");
                     strcat(message, client->friend_request->name);
                     strcat(message, "\n");
@@ -1170,12 +1163,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 }
                 else if (strcmp(buffer, "no") == 0)
                 {
-                    printf("Client %s declined the friend request.\n", client->name);
-
                     strcat(message, "You declined the friend request.\n");
-
                     write_client(client->sock, message);
-
                     message[0] = '\0';
                     strcat(message, "Client ");
                     strcat(message, client->name);
@@ -1189,7 +1178,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 else
                 {
                     strcat(message, "Invalid response. Please resend the answer.\n");
-                    printf("Client %s sent invalid response\n", client->name);
                     write_client(client->sock, message);
                 }
             }
@@ -1290,7 +1278,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
     }
 }
 
-static void handle_server_input(Client *clients, int actual, int sock, char *buffer)
+static void handle_server_input(Client *clients, int actual, int sock, char *buffer, AwaleGame games[], int game_index[])
 {
     if (strcmp(buffer, ":help\n") == 0)
     {
@@ -1315,6 +1303,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
 
         // Commands
         printf("| `:ls` or `:list` - list all connected clients\n");
+        printf("| `:lsg` or `:listGames` - list all games\n");
         printf("| `:rank` - show ranking of all connected clients\n");
         printf("| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
 
@@ -1368,12 +1357,52 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         }
         printf("\u2514%s\u2518\n", line); // Print the bottom border with corners
     }
+    else if (strcmp(buffer, ":lsg\n") == 0 || strcmp(buffer, ":listGames\n") == 0)
+    {
+        char list_buffer[2048];
+        list_buffer[0] = '\0';
+        strcpy(list_buffer, "Games:\n");
+        if (game_index[0] == 0)
+        {
+            printf("No available games.\n");
+            return;
+        }
+        else
+        {
+            strncat(list_buffer, "┌────────┬────────────────────────────────────────┐\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+            strncat(list_buffer, "│ Number │                 Status                 │\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+
+            for (int i = 0; i < game_index[0]; i++)
+            {
+
+                char line[256];
+                strncat(list_buffer, "├────────┼────────────────────────────────────────┤\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+                snprintf(line, sizeof(line), "│ %-6d │ %-38s │\n", i, games[i].status);
+                strncat(list_buffer, line, sizeof(list_buffer) - strlen(list_buffer) - 1);
+            }
+
+            strncat(list_buffer, "└────────┴────────────────────────────────────────┘\n", sizeof(list_buffer) - strlen(list_buffer) - 1);
+        }
+        printf("%s", list_buffer);
+    }
     else if (strcmp(buffer, ":rank\n") == 0)
     {
         if (actual == 0)
         {
             printf("No client connected\n");
             return;
+        }
+        for (int i = 0; i < actual; i++)
+        {
+            for (int j = i + 1; j < actual; j++)
+            {
+                if (clients[i].score < clients[j].score)
+                {
+                    Client temp = clients[i];
+                    clients[i] = clients[j];
+                    clients[j] = temp;
+                }
+            }
         }
         char ranking_buffer[2048];
         snprintf(ranking_buffer, sizeof(ranking_buffer), "Ranking:\n");
@@ -1401,6 +1430,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         strncat(ranking_buffer, "└──────┴────────────────────┴───────┘\n", sizeof(ranking_buffer) - strlen(ranking_buffer) - 1);
         printf("%s", ranking_buffer);
     }
+
     else
     {
         printf("Server received unknown command.\n");
@@ -1410,6 +1440,8 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
 static void app(void)
 {
     SOCKET sock = init_connection();
+    printf("Oware game server start.\n");
+    printf("Enter `:help` to get help.\n");
     char buffer[BUF_SIZE];
     /* the index for the array */
     int actual = 0;
@@ -1452,7 +1484,7 @@ static void app(void)
             if (bytesRead > 1)
             {
                 buffer[bytesRead] = '\0';
-                handle_server_input(clients, actual, sock, buffer);
+                handle_server_input(clients, actual, sock, buffer, games, game_index);
             }
             else if (bytesRead == 0)
             {
@@ -1930,7 +1962,6 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
 
     if (strcmp(client->name, buffer) == 0)
     {
-        printf("Client %s tried to challenge themselves\n", client->name);
         write_client(client->sock, "You can't challenge yourself\n");
 
         return;
