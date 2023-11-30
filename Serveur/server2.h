@@ -41,7 +41,8 @@ typedef struct in_addr IN_ADDR;
 #define BUF_SIZE    1024
 #define NAME_SIZE    26
 
-#define K_FACTOR 32 // This is the constant used to adjust the Elo rating change
+#define K_FACTOR 32 
+#define INITIAL_SCORE 1000
 
 #include "client2.h"
 

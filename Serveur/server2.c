@@ -137,23 +137,30 @@ void play_move(int board[], int score[], int player, int position)
     }
 }
 
-double calculateExpectedScore(int ratingA, int ratingB) {
+double calculateExpectedScore(int ratingA, int ratingB)
+{
     return 1.0 / (1 + pow(10, (ratingB - ratingA) / 400.0));
 }
 
-void updateEloRatings(Client *playerA, Client *playerB, int outcome) {
+void updateEloRatings(Client *playerA, Client *playerB, int outcome)
+{
     double expectedScoreA = calculateExpectedScore(playerA->score, playerB->score);
     double expectedScoreB = calculateExpectedScore(playerB->score, playerA->score);
 
     double actualScoreA, actualScoreB;
 
-    if (outcome == 1) { // Player A wins
+    if (outcome == 1)
+    { // Player A wins
         actualScoreA = 1.0;
         actualScoreB = 0.0;
-    } else if (outcome == -1) { // Player B wins
+    }
+    else if (outcome == -1)
+    { // Player B wins
         actualScoreA = 0.0;
         actualScoreB = 1.0;
-    } else { // Draw
+    }
+    else
+    { // Draw
         actualScoreA = 0.5;
         actualScoreB = 0.5;
     }
@@ -513,7 +520,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     strncpy(c.name, buffer, NAME_SIZE);
     c.name[NAME_SIZE] = '\0'; // Ensure null-termination
     c.state = IDLE;
-    c.score = 0;
+    c.score = INITIAL_SCORE;
     c.currentGame = -1;
     c.observeGame = -1;
     c.number_friend = 0;
@@ -1073,34 +1080,37 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                                                "Back to broadcast mode.\n");
                     client->state = IDLE;
                 }
-                int found = 0;
-                for (int j = 0; j < *actual; j++)
+                else
                 {
-                    if (strcmp(client->name, username) == 0)
+                    int found = 0;
+                    for (int j = 0; j < *actual; j++)
                     {
-                        write_client(client->sock, "You cannot send message to yourself.\n"
-                                                   "Back to broadcast mode.\n");
-                        client->state = IDLE;
-                        found = 1;
-                        break;
+                        if (strcmp(client->name, username) == 0)
+                        {
+                            write_client(client->sock, "You cannot send message to yourself.\n"
+                                                       "Back to broadcast mode.\n");
+                            client->state = IDLE;
+                            found = 1;
+                            break;
+                        }
+                        if (strcmp(clients[j].name, username) == 0)
+                        {
+                            found = 1;
+                            write_client(clients[j].sock, "You have a private message from ");
+                            write_client(clients[j].sock, client->name);
+                            write_client(clients[j].sock, " : ");
+                            write_client(clients[j].sock, message);
+                            write_client(clients[j].sock, "\n");
+                            write_client(client->sock, "Your message has been sent.\n"
+                                                       "Back to broadcast mode.\n");
+                            client->state = IDLE;
+                            break;
+                        }
                     }
-                    if (strcmp(clients[j].name, username) == 0)
+                    if (!found)
                     {
-                        found = 1;
-                        write_client(clients[j].sock, "You have a private message from ");
-                        write_client(clients[j].sock, client->name);
-                        write_client(clients[j].sock, " : ");
-                        write_client(clients[j].sock, message);
-                        write_client(clients[j].sock, "\n");
-                        write_client(client->sock, "Your message has been sent.\n"
-                                                   "Back to broadcast mode.\n");
-                        client->state = IDLE;
-                        break;
+                        write_client(client->sock, "No client with this name. Please enter a valid name.\n");
                     }
-                }
-                if (!found)
-                {
-                    write_client(client->sock, "No client with this name. Please enter a valid name.\n");
                 }
             }
         }
