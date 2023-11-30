@@ -709,6 +709,24 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             else
             {
                 challenge_another_client_request(clients, client, *actual, client->sock, buffer, 0);
+                client->state = WAITING;
+            }
+        }
+        break;
+    case WAITING:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+            if (c == 0)
+            {
+                client->opponent->state = IDLE;
+                client->opponent->opponent = NULL;
+                write_client(client->opponent->sock, "Your opponent has disconnected!");
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else
+            {
+                write_client(client->sock, "You are waiting for your opponent to accept your challenge.\n");
             }
         }
         break;
@@ -1125,9 +1143,29 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             else
             {
                 add_friend_request(clients, client, *actual, client->sock, buffer, 0);
+                client->state = WAITINGFRIEND;
             }
         }
         break;
+    case WAITINGFRIEND:
+        if (FD_ISSET(client->sock, rdfs))
+        {
+            c = read_client(client->sock, buffer);
+
+            if (c == 0)
+            {
+                client->friend_request->state = IDLE;
+                client->friend_request->friend_request = NULL;
+                write_client(client->friend_request->sock, "Your friend has disconnected!");
+                handle_disconnect_client(clients, *client, i, actual);
+            }
+            else
+            {
+                write_client(client->sock, "You are waiting for your friend to accept your friend request.\n");
+            }
+        }
+        break;
+
     case FRIEND:
         if (FD_ISSET(client->sock, rdfs))
         {
@@ -1272,6 +1310,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
         }
         break;
+
     default:
         fprintf(stderr, "Unknown state for client %s\n", client->name);
         break;

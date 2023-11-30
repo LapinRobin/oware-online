@@ -8,6 +8,7 @@ typedef struct Client Client;
 typedef enum {
     IDLE,
     CHALLENGE,
+    WAITING,
     CHOICE,
     PLAYER1,
     PLAYER2,
@@ -16,6 +17,7 @@ typedef enum {
     BIO,
     DM,
     ADDFRIEND,
+    WAITINGFRIEND,
     FRIEND,
     REMOVEFRIEND,
     HISTORY,
