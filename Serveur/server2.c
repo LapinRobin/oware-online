@@ -574,6 +574,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:v` or `:vie`- invite a user to an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
                 write_client(client->sock, "| `:bio` - write your bio\n");
+                write_client(client->sock, "| `:db [username]` - display bio of a user\n");
                 write_client(client->sock, "| `:dm` - send a message to a user\n");
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
                 write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
@@ -636,7 +637,35 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 client->state = BIO;
                 write_client(client->sock, "Write your bio here, or enter ':exit' to cancel the modification: \n");
             }
-
+            else if (strncmp(buffer, ":db ", 4) == 0)
+            {
+                if (strlen(buffer) > 4)
+                {
+                    char name[NAME_SIZE + 1];
+                    strncpy(name, buffer + 4, NAME_SIZE);
+                    name[NAME_SIZE] = '\0';
+                    int found = 0;
+                    for (int i = 0; i < *actual; i++)
+                    {
+                        if (strcmp(clients[i].name, name) == 0)
+                        {
+                            found = 1;
+                            write_client(client->sock, "User bio: ");
+                            write_client(client->sock, clients[i].bio);
+                            write_client(client->sock, "\n");
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        write_client(client->sock, "User not found.\n");
+                    }
+                }
+                else
+                {
+                    write_client(client->sock, "Invalid command.\n");
+                }
+            }
             else if ((strcmp(buffer, ":dm") == 0))
             {
                 client->state = DM;
