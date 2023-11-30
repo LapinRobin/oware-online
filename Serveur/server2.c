@@ -738,7 +738,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             else
             {
                 challenge_another_client_request(clients, client, *actual, client->sock, buffer, 0);
-                client->state = WAITING;
             }
         }
         break;
@@ -858,13 +857,14 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, " won.");
 
                 anotherPlayer->opponent = NULL;
+                anotherPlayer->state = HISTORY;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
                 write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
-                anotherPlayer->state = HISTORY;
+                
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
@@ -947,13 +947,14 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(game->status, anotherPlayer->name);
                 strcat(game->status, " won.");
                 anotherPlayer->opponent = NULL;
+                anotherPlayer->state = HISTORY;
                 strcat(buffer, "\nGame status : ");
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
                 handle_disconnect_client(clients, *client, i, actual);
                 write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
-                anotherPlayer->state = HISTORY;
+                
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
@@ -1172,7 +1173,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             else
             {
                 add_friend_request(clients, client, *actual, client->sock, buffer, 0);
-                client->state = WAITINGFRIEND;
             }
         }
         break;
@@ -1942,6 +1942,8 @@ add_friend_request(Client *clients, Client *client, int actual, int sender_sock,
             clients[i].state = FRIEND;
             clients[i].friend_request = client;
             client->friend_request = (clients + i);
+            client->state = WAITINGFRIEND;
+
             break;
         }
     }
@@ -2043,6 +2045,7 @@ challenge_another_client_request(Client *clients, Client *client, int actual, in
             clients[i].state = CHOICE;
             clients[i].opponent = client;
             client->opponent = (clients + i);
+            client->state = WAITING;
             break;
         }
     }
