@@ -578,7 +578,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
                 write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
                 write_client(client->sock, "| `:lf` or `:listFriends` - list all your friends\n");
-                write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
+                write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - disconnect from the server\n");
                 write_client(client->sock, "\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
