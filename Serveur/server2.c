@@ -862,9 +862,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
-                handle_disconnect_client(clients, *client, i, actual);
                 write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
-                
+                handle_disconnect_client(clients, *client, i, actual);
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
@@ -952,9 +951,8 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 strcat(buffer, game->status);
                 strcat(buffer, "\n");
                 write_client(anotherPlayer->sock, buffer);
-                handle_disconnect_client(clients, *client, i, actual);
                 write_client(anotherPlayer->sock, "Do you want to save this game in your history? (yes/no)\n");
-                
+                handle_disconnect_client(clients, *client, i, actual);
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
