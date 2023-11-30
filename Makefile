@@ -1,6 +1,7 @@
 # Compiler and compile options
 CC=gcc
 CFLAGS=-Wall -g
+LIBS=-lm
 
 # Directories
 CLIENT_DIR=Client
@@ -23,11 +24,11 @@ all: $(CLIENT_EXE) $(SERVER_EXE)
 
 # Client program
 $(CLIENT_EXE): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 # Server program
 $(SERVER_EXE): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 # To remove generated files
 clean:

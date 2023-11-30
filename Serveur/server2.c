@@ -4,7 +4,7 @@
 
 #include <errno.h>
 #include <string.h>
-
+#include <math.h>
 #include "server2.h"
 #include "client2.h"
 
@@ -137,13 +137,39 @@ void play_move(int board[], int score[], int player, int position)
     }
 }
 
+double calculateExpectedScore(int ratingA, int ratingB) {
+    return 1.0 / (1 + pow(10, (ratingB - ratingA) / 400.0));
+}
+
+void updateEloRatings(Client *playerA, Client *playerB, int outcome) {
+    double expectedScoreA = calculateExpectedScore(playerA->score, playerB->score);
+    double expectedScoreB = calculateExpectedScore(playerB->score, playerA->score);
+
+    double actualScoreA, actualScoreB;
+
+    if (outcome == 1) { // Player A wins
+        actualScoreA = 1.0;
+        actualScoreB = 0.0;
+    } else if (outcome == -1) { // Player B wins
+        actualScoreA = 0.0;
+        actualScoreB = 1.0;
+    } else { // Draw
+        actualScoreA = 0.5;
+        actualScoreB = 0.5;
+    }
+
+    // Update Elo ratings for both players
+    playerA->score += K_FACTOR * (actualScoreA - expectedScoreA);
+    playerB->score += K_FACTOR * (actualScoreB - expectedScoreB);
+}
+
 int is_game_over(AwaleGame *game, char status[], int board[], int score[])
 {
     int total = 0;
 
     if (score[0] > NB_SEEDS * NB_HOUSES_PER)
     {
-        game->player1->score++;
+        updateEloRatings(game->player1, game->player2, 1);
         status[0] = '\0';
         strcat(status, "Player 1 ");
         strcat(game->status, " name : ");
@@ -153,7 +179,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
     }
     if (score[1] > NB_SEEDS * NB_HOUSES_PER)
     {
-        game->player2->score++;
+        updateEloRatings(game->player1, game->player2, -1);
         status[0] = '\0';
         strcat(status, "Player 2");
         strcat(game->status, " name : ");
@@ -171,7 +197,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
     {
         if (score[0] > score[1])
         {
-            game->player1->score++;
+            updateEloRatings(game->player1, game->player2, 1);
             status[0] = '\0';
             strcat(status, "Player 1");
             strcat(game->status, " name : ");
@@ -180,7 +206,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         }
         else if (score[0] < score[1])
         {
-            game->player2->score++;
+            updateEloRatings(game->player1, game->player2, -1);
             status[0] = '\0';
             strcat(status, "Player 2");
             strcat(game->status, " name : ");
@@ -189,6 +215,7 @@ int is_game_over(AwaleGame *game, char status[], int board[], int score[])
         }
         else
         {
+            updateEloRatings(game->player1, game->player2, 0);
             status[0] = '\0';
             strcat(status, "Two players tie.\n");
         }
@@ -770,7 +797,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
-                anotherPlayer->score++;
+                updateEloRatings(client, anotherPlayer, -1);
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
                 game->status[0] = '\0';
                 strcat(game->status, "Player ");
@@ -793,7 +820,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
-                anotherPlayer->score++;
+                updateEloRatings(client, anotherPlayer, -1);
                 write_client(anotherPlayer->sock, "Your opponent surrendered and you won the game!\n");
                 game->status[0] = '\0';
                 strcat(game->status, "Player ");
@@ -861,7 +888,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             c = read_client(client->sock, buffer);
             if (c == 0)
             {
-                anotherPlayer->score++;
+                updateEloRatings(client, anotherPlayer, -1);
                 write_client(anotherPlayer->sock, "Your opponent disconnected, you won this game!\n");
                 game->status[0] = '\0';
                 strcat(game->status, "Player ");
@@ -882,7 +909,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if ((strcmp(buffer, ":s") == 0))
             {
-                anotherPlayer->score++;
+                updateEloRatings(client, anotherPlayer, -1);
                 write_client(anotherPlayer->sock, "Your opponent surrendered and you won the game!\n");
                 game->status[0] = '\0';
                 strcat(game->status, "Player ");

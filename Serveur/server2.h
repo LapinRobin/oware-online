@@ -41,6 +41,8 @@ typedef struct in_addr IN_ADDR;
 #define BUF_SIZE    1024
 #define NAME_SIZE    26
 
+#define K_FACTOR 32 // This is the constant used to adjust the Elo rating change
+
 #include "client2.h"
 
 void display_board(AwaleGame *game, int board[], int score[], Client* client);
@@ -52,6 +54,10 @@ int is_valid_move(int board[], int player, int position);
 void playable_positions(int board[], int player, int positions[]);
 
 void play_move(int board[], int score[], int player, int position);
+
+double calculateExpectedScore(int ratingA, int ratingB);
+
+void updateEloRatings(Client *playerA, Client *playerB, int outcome);
 
 int is_game_over(AwaleGame *game, char status[], int board[], int score[]);
 
