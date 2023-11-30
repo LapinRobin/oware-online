@@ -295,7 +295,7 @@ void game_play(AwaleGame *game)
         strcat(buffer, "Enter ':s' to surrender this game\n");
         strcat(buffer, "Enter ':p' to open privacy mode\n");
         strcat(buffer, "Enter ':e' to close privacy mode\n");
-        strcat(buffer, "Other messages will be sent to your opponent\n");
+        strcat(buffer, "Enter ':dm [message]' to send a message to your opponent\n");
         write_client(player->sock, buffer);
         write_client(anotherPlayer->sock, buffer);
     }
@@ -452,23 +452,32 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     // Update the maximum file descriptor if necessary
     *max = csock > *max ? csock : *max;
 
-
     buffer[NAME_SIZE] = '\0'; // Truncate to 26 characters
-
+    char message[50];
     for (int i = 0; buffer[i] != '\0'; i++)
     {
         if ((unsigned char)buffer[i] > 127)
         {
             // write to client: invalid name (contains non-ASCII characters)
-            char message[50];
             message[0] = '\0';
             strcat(message, "Invalid name, contains non-ASCII characters.\n");
             write_client(csock, message);
-
             closesocket(csock);
             return;
         }
     }
+
+    for (int i = 0; i < *actual; i++){
+        if (strcmp(clients[i].name, buffer) == 0){
+            // write to client: invalid name (already exists)
+            message[0] = '\0';
+            strcat(message, "Username already exists. Please choose another name.\n");
+            write_client(csock, message);
+            closesocket(csock);
+            return;
+        }
+    }
+
     // Initialize the new client
     Client c = {csock};
     strncpy(c.name, buffer, NAME_SIZE);
@@ -527,6 +536,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:v` or `:vie`- invite a user to an oware game\n");
                 write_client(client->sock, "| `:o` or `:observe` - observe a game\n");
                 write_client(client->sock, "| `:bio` - write your bio\n");
+                write_client(client->sock, "| `:dm` - send a message to a user\n");
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
                 write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
                 write_client(client->sock, "| `:lf` or `:listFriends` - list all your friends\n");
@@ -535,7 +545,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
             {
-                send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0);
+                send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0, 1);
             }
             else if ((strcmp(buffer, ":lsg") == 0) || (strcmp(buffer, ":listGames") == 0))
             {
@@ -577,9 +587,10 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "Write your bio here, or enter ':exit' to cancel the modification: \n");
             }
 
-            else if ((strcmp(buffer, ":dm") ==0))
+            else if ((strcmp(buffer, ":dm") == 0))
             {
                 client->state = DM;
+                send_list_of_clients(clients, *client, *actual, client->sock, buffer, 0, 0);
                 write_client(client->sock, "Write the name of the person you want to send message to,\n"
                                            "Immediately after a space, write the message.\n"
                                            "Example: 'Alex Hello'\n"
@@ -620,7 +631,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 {
                     write_client(client->sock, "You have no friends.\n");
                 }
-
             }
             else if (strcmp(buffer, ":exit") == 0)
             {
@@ -790,6 +800,15 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "You closed privacy mode.\n");
                 write_client(anotherPlayer->sock, "Your opponent closed privacy mode.\n");
             }
+            else if (strncmp(buffer, ":dm ", 4) == 0)
+            {
+                message[0] = '\0';
+                strcat(message, "Your opponent ");
+                strcat(message, client->name);
+                strcat(message, " : ");
+                strcat(message, buffer+4);
+                write_client(client->opponent->sock, message);
+            }
             else if (is_number(buffer))
             {
                 game->position = atoi(buffer);
@@ -797,12 +816,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else
             {
-                message[0] = '\0';
-                strcat(message, "Your opponent ");
-                strcat(message, client->name);
-                strcat(message, " : ");
-                strcat(message, buffer);
-                write_client(client->opponent->sock, message);
+                write_client(client->sock, "Invalid input.\n");
             }
 
             if (check && is_valid_move(game->board, game->currentPlayer, game->position))
@@ -875,14 +889,18 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "You closed privacy mode.\n");
                 write_client(anotherPlayer->sock, "Your opponent closed privacy mode.\n");
             }
-            else
+            else if (strncmp(buffer, ":dm ", 4) == 0)
             {
                 message[0] = '\0';
                 strcat(message, "Your opponent ");
                 strcat(message, client->name);
                 strcat(message, " : ");
-                strcat(message, buffer);
+                strcat(message, buffer+4);
                 write_client(client->opponent->sock, message);
+            }
+            else
+            {
+                write_client(client->sock, "Invalid input.\n");
             }
         }
         break;
@@ -982,7 +1000,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
         }
         break;
 
-
     case DM:
 
         if (FD_ISSET(client->sock, rdfs))
@@ -1014,6 +1031,13 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 int found = 0;
                 for (int j = 0; j < *actual; j++)
                 {
+                    if(strcmp(client->name, username) == 0){
+                        write_client(client->sock, "You cannot send message to yourself.\n"
+                                                   "Back to broadcast mode.\n");
+                        client->state = IDLE;
+                        found = 1;
+                        break;
+                    }
                     if (strcmp(clients[j].name, username) == 0)
                     {
                         found = 1;
@@ -1030,14 +1054,12 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 }
                 if (!found)
                 {
-                    write_client(client->sock, "No client with this name.\n");
-                    client->state = IDLE;
+                    write_client(client->sock, "No client with this name. Please enter a valid name.\n");
                 }
-
             }
         }
         break;
-      case ADDFRIEND:
+    case ADDFRIEND:
         if (FD_ISSET(client->sock, rdfs))
         {
             c = read_client(client->sock, buffer);
@@ -1141,8 +1163,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
         fprintf(stderr, "Unknown state for client %s\n", client->name);
         break;
     }
-
-
 }
 
 static void handle_server_input(Client *clients, int actual, int sock, char *buffer)
@@ -1450,7 +1470,7 @@ send_message_to_all_clients(Client *clients, Client sender, int actual, const ch
 }
 
 static void
-send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server)
+send_list_of_clients(Client *clients, Client client, int actual, int sender_sock, const char *buffer, int from_server, int include_self)
 {
     char list_buffer[2048]; // Increase buffer size if necessary
     char line_buffer[128];  // Buffer for individual lines
@@ -1470,6 +1490,9 @@ send_list_of_clients(Client *clients, Client client, int actual, int sender_sock
         // Add each client to the list
         for (int i = 0; i < actual; i++)
         {
+            if(strcmp(clients[i].name, client.name) == 0 && include_self == 0){
+                continue;
+            }
             snprintf(line_buffer, sizeof(line_buffer), "│ %-13s │ %-29s │\n", clients[i].name, clients[i].bio);
             strcat(list_buffer, line_buffer);
         }
