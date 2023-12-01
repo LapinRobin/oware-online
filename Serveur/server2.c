@@ -1360,6 +1360,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         printf("| `:lsg` or `:listGames` - list all games\n");
         printf("| `:rank` - show ranking of all connected clients\n");
         printf("| `:broadcast [message]- send message to all connected clients\n");
+        printf("| `:kick [username]` - kick a user out of server\n");
         printf("| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
 
         // Bottom border
@@ -1384,6 +1385,37 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         for (int i = 0; i < actual; i++)
         {
             write_client(clients[i].sock, message);
+        }
+    }
+    else if (strncmp(buffer, ":warn ", 6) == 0)
+    {
+
+        char name[NAME_SIZE + 1];
+        strncpy(name, buffer + 6, NAME_SIZE);
+        name[NAME_SIZE] = '\0';
+
+        char *newline = strchr(name, '\n');
+        if (newline) {
+            *newline = '\0';
+        }
+
+        int found = 0;
+        for (int i = 0; i < actual; i++)
+        {
+            if (strcmp(clients[i].name, name) == 0)
+            {
+                found = 1;
+                write_client(clients[i].sock, "[Server] You have been warned. Watch yourself\n");
+                break;
+            }
+        }
+        if (!found)
+        {
+            printf("Client %s not found\n", name);
+        }
+        else
+        {
+            printf("Client %s warned\n", name);
         }
     }
     else if (strcmp(buffer, ":ls\n") == 0 || strcmp(buffer, ":list\n") == 0)

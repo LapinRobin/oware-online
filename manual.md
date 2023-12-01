@@ -131,6 +131,10 @@ Description: Displays the ranking of all connected clients.
 
 Description: Sends a message to all connected clients. Replace [message] with the actual message you want to send.
 
-5. `:exit`, `CTRL-C`, or `CTRL-D`
+5. `:warn [username]`
+
+Description: Sends a message to a specific user. Replace [username] with the desired user's username. Replace [message] with the actual message you want to send.
+
+6. `:exit`, `CTRL-C`, or `CTRL-D`
 
 Description: Closes the server. All connected clients will be disconnected.
