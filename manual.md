@@ -3,7 +3,7 @@
 ##  Compiling and running the project
     
 
-Open the terminal and navigate to the directory where the Makefile is located. Type the command `make`  to compile the files. 
+Open the terminal and navigate to the directory where the Makefile is located. Type the command `make`  to compile the files. Type `make clean` to clean the project. 
 
 To start the server in the same path, execute `./Serveur/server_app`. To start the client, execute `./Client/client_app [IP] [username]`. It is forbidden to use a username that is already used by a connected user.
 
