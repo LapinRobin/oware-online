@@ -487,15 +487,11 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     *max = csock > *max ? csock : *max;
 
     buffer[NAME_SIZE] = '\0'; // Truncate to 26 characters
-    char message[50];
     for (int i = 0; buffer[i] != '\0'; i++)
     {
         if ((unsigned char)buffer[i] > 127)
         {
-            // write to client: invalid name (contains non-ASCII characters)
-            message[0] = '\0';
-            strcat(message, "Invalid name, contains non-ASCII characters.\n");
-            write_client(csock, message);
+            write_client(csock, "Invalid name, contains non-ASCII characters.\n");
             closesocket(csock);
             return;
         }
@@ -506,9 +502,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
         if (strcmp(clients[i].name, buffer) == 0)
         {
             // write to client: invalid name (already exists)
-            message[0] = '\0';
-            strcat(message, "Username already exists. Please choose another name.\n");
-            write_client(csock, message);
+            write_client(csock,  "Username already exists. Please choose another name.\n");
             closesocket(csock);
             return;
         }
