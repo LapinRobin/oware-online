@@ -538,7 +538,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
     int c;
     int randomValue;
     AwaleGame *game;
-    buffer[0] = '\0';
     char message[BUF_SIZE];
     message[0] = '\0';
     switch (client->state)
@@ -568,7 +567,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
                 write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
                 write_client(client->sock, "| `:lf` or `:listFriends` - list all your friends\n");
-                write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - disconnect from the server\n");
+                write_client(client->sock, "| `:exit`, `CTRL-C` - disconnect from the server\n");
                 write_client(client->sock, "\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
@@ -2124,9 +2123,8 @@ static void end_connection(int sock)
 
 static int read_client(SOCKET sock, char *buffer)
 {
-    int n = 0;
-
-    if ((n = recv(sock, buffer, BUF_SIZE - 1, 0)) < 0)
+    int n = recv(sock, buffer, BUF_SIZE - 1, 0);
+    if (n < 0)
     {
         perror("recv()");
         /* if recv error we disonnect the client */
