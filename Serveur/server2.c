@@ -14,31 +14,30 @@ void display_board(AwaleGame *game, int board[], int score[], Client *client)
     char numStr[3];
     buffer[0] = '\0';
     strcat(buffer, "\nGame Board:\n");
-    strcat(buffer, "Player 1 (top): ");
-
+    strcat(buffer, "Player 1 (top): \n");
+    strcat(buffer, "score: ");
+    numStr[0] = '\0';
+    sprintf(numStr, "%d", score[0]);
+    strcat(buffer, numStr);
+    strcat(buffer, " \n");
+    strcat(buffer, "|");
     for (int i = 0; i < NB_HOUSES_PER; i++)
     {
         numStr[0] = '\0';
         sprintf(numStr, "%d", board[i]);
         strcat(buffer, numStr);
-        strcat(buffer, " ");
+        strcat(buffer, "|");
     }
-
-    strcat(buffer, "\nscore: ");
-    numStr[0] = '\0';
-    sprintf(numStr, "%d", score[0]);
-    strcat(buffer, numStr);
     strcat(buffer, " \n");
-
-    strcat(buffer, "Player 2 (buttom): ");
+    strcat(buffer, "|");
     for (int i = NB_HOUSES_TOTAL - 1; i >= NB_HOUSES_PER; i--)
     {
         numStr[0] = '\0';
         sprintf(numStr, "%d", board[i]);
         strcat(buffer, numStr);
-        strcat(buffer, " ");
+        strcat(buffer, "|");
     }
-
+    strcat(buffer, "\nPlayer 2 (buttom): ");
     strcat(buffer, "\nscore: ");
     numStr[0] = '\0';
     sprintf(numStr, "%d", score[1]);
@@ -308,6 +307,7 @@ void game_play(AwaleGame *game)
     }
     else
     {
+        strcat(buffer, "Number positions progress clockwise from the top left corner to the bottom right corner.\n"); 
         strcat(buffer, "Playable positions for player ");
         strcat(buffer, numStr);
         strcat(buffer, " : \n");
