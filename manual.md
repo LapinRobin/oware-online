@@ -102,7 +102,7 @@ Description: Removes a user from your friend list. You can enter the name to rem
 
 Description: Lists all your added friends.
 
-13.  `:exit`, `CTRL-C`, or `CTRL-D`
+13.  `:exit` or `CTRL-C`
     
 
 Description: Disconnects from the server. All your personal information will be deleted. Your friends will remove you from their friends list.
@@ -126,3 +126,11 @@ Description: Lists all games.
     
 
 Description: Displays the ranking of all connected clients.
+
+4. `:broadcast [message]`
+
+Description: Sends a message to all connected clients. Replace [message] with the actual message you want to send.
+
+5. `:exit`, `CTRL-C`, or `CTRL-D`
+
+Description: Closes the server. All connected clients will be disconnected.
