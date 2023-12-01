@@ -14,31 +14,30 @@ void display_board(AwaleGame *game, int board[], int score[], Client *client)
     char numStr[3];
     buffer[0] = '\0';
     strcat(buffer, "\nGame Board:\n");
-    strcat(buffer, "Player 1 (top): ");
-
+    strcat(buffer, "Player 1 (top): \n");
+    strcat(buffer, "score: ");
+    numStr[0] = '\0';
+    sprintf(numStr, "%d", score[0]);
+    strcat(buffer, numStr);
+    strcat(buffer, " \n");
+    strcat(buffer, "|");
     for (int i = 0; i < NB_HOUSES_PER; i++)
     {
         numStr[0] = '\0';
         sprintf(numStr, "%d", board[i]);
         strcat(buffer, numStr);
-        strcat(buffer, " ");
+        strcat(buffer, "|");
     }
-
-    strcat(buffer, "\nscore: ");
-    numStr[0] = '\0';
-    sprintf(numStr, "%d", score[0]);
-    strcat(buffer, numStr);
     strcat(buffer, " \n");
-
-    strcat(buffer, "Player 2 (buttom): ");
+    strcat(buffer, "|");
     for (int i = NB_HOUSES_TOTAL - 1; i >= NB_HOUSES_PER; i--)
     {
         numStr[0] = '\0';
         sprintf(numStr, "%d", board[i]);
         strcat(buffer, numStr);
-        strcat(buffer, " ");
+        strcat(buffer, "|");
     }
-
+    strcat(buffer, "\nPlayer 2 (buttom): ");
     strcat(buffer, "\nscore: ");
     numStr[0] = '\0';
     sprintf(numStr, "%d", score[1]);
@@ -308,6 +307,7 @@ void game_play(AwaleGame *game)
     }
     else
     {
+        strcat(buffer, "Number positions progress clockwise from the top left corner to the bottom right corner.\n"); 
         strcat(buffer, "Playable positions for player ");
         strcat(buffer, numStr);
         strcat(buffer, " : \n");
@@ -538,7 +538,6 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
     int c;
     int randomValue;
     AwaleGame *game;
-    buffer[0] = '\0';
     char message[BUF_SIZE];
     message[0] = '\0';
     switch (client->state)
@@ -568,7 +567,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
                 write_client(client->sock, "| `:f` or `:friend` - add a friend\n");
                 write_client(client->sock, "| `:rmf` or `:removeFriend` - remove a friend\n");
                 write_client(client->sock, "| `:lf` or `:listFriends` - list all your friends\n");
-                write_client(client->sock, "| `:exit`, `CTRL-C` or `CTRL-D` - disconnect from the server\n");
+                write_client(client->sock, "| `:exit`, `CTRL-C` - disconnect from the server\n");
                 write_client(client->sock, "\n");
             }
             else if ((strcmp(buffer, ":ls") == 0) || (strcmp(buffer, ":list") == 0))
@@ -2156,9 +2155,8 @@ static void end_connection(int sock)
 
 static int read_client(SOCKET sock, char *buffer)
 {
-    int n = 0;
-
-    if ((n = recv(sock, buffer, BUF_SIZE - 1, 0)) < 0)
+    int n = recv(sock, buffer, BUF_SIZE - 1, 0);
+    if (n < 0)
     {
         perror("recv()");
         /* if recv error we disonnect the client */
