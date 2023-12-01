@@ -909,7 +909,7 @@ static void handle_client_state(Client *clients, Client *client, int *actual, fd
             }
             else if (check)
             {
-                write_client(client->sock, "Invalid move. Please choose a valid position.\n");
+                write_client(client->sock, "Please choose a valid position.\n");
             }
         }
         break;
@@ -1404,7 +1404,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
             if (strcmp(clients[i].name, name) == 0)
             {
                 found = 1;
-                write_client(clients[i].sock, "[Server] You have been warned. Watch yourself\n");
+                write_client(clients[i].sock, "[Server] You have been warned. Watch yourself.\n");
                 break;
             }
         }
