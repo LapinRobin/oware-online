@@ -98,8 +98,6 @@ static void write_client(SOCKET sock, const char *buffer);
 
 static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *max);
 
-static void handle_client_input(Client *clients, Client *client, int actual, int max);
-
 static void handle_server_input(Client *clients, int actual, int sock, char *buffer, AwaleGame games[], int game_index[]);
 
 static void
