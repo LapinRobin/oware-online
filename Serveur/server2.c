@@ -501,8 +501,7 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
     {
         if (strcmp(clients[i].name, buffer) == 0)
         {
-            // write to client: invalid name (already exists)
-            write_client(csock,  "Username already exists. Please choose another name.\n");
+            write_client(csock, "Username already exists. Please choose another name.\n");
             closesocket(csock);
             return;
         }
@@ -532,10 +531,6 @@ static void handle_new_client(SOCKET sock, Client *clients, int *actual, int *ma
         printf("Maximum number of clients reached. Cannot accept more.\n");
         closesocket(csock);
     }
-}
-
-static void handle_client_input(Client *clients, Client *client, int actual, int max)
-{
 }
 
 static void handle_client_state(Client *clients, Client *client, int *actual, fd_set *rdfs, char *buffer, int i, AwaleGame games[], AwaleGame *current_game, int game_index[])
@@ -1364,6 +1359,7 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         printf("| `:ls` or `:list` - list all connected clients\n");
         printf("| `:lsg` or `:listGames` - list all games\n");
         printf("| `:rank` - show ranking of all connected clients\n");
+        printf("| `:broadcast [message]- send message to all connected clients\n");
         printf("| `:exit`, `CTRL-C` or `CTRL-D` - shut down server\n");
 
         // Bottom border
@@ -1378,6 +1374,17 @@ static void handle_server_input(Client *clients, int actual, int sock, char *buf
         clear_clients(clients, actual);
         end_connection(sock);
         exit(0);
+    }
+    else if (strncmp(buffer, ":broadcast ", 11) == 0)
+    {
+        char message[BUF_SIZE];
+        message[0] = '\0';
+        strcat(message, "[Server] ");
+        strcat(message, buffer + 11);
+        for (int i = 0; i < actual; i++)
+        {
+            write_client(clients[i].sock, message);
+        }
     }
     else if (strcmp(buffer, ":ls\n") == 0 || strcmp(buffer, ":list\n") == 0)
     {

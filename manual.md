@@ -109,7 +109,7 @@ Description: Disconnects from the server. All your personal information will be 
 
   
 
-3.  List of available commands for server:
+## List of available commands for server:
     
 
 1.  `:ls` or `:list`
